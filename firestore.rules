@@ -1,0 +1,124 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isWorkspaceOwner(ownerId) {
+      return ownerId == 'personal-workspace';
+    }
+
+    function isValidCategory(data) {
+      return data.keys().hasAll([
+          'ownerId', 'name', 'slug', 'description', 'group',
+          'colorKey', 'iconKey', 'order', 'fields', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId', 'name', 'slug', 'description', 'group',
+          'colorKey', 'iconKey', 'order', 'fields', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.ownerId)
+        && isWorkspaceOwner(data.ownerId)
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 80
+        && data.slug is string && data.slug.size() >= 1 && data.slug.size() <= 50 && data.slug.matches('^[a-z0-9\\-]+$')
+        && data.description is string && data.description.size() <= 200
+        && data.group in ['core', 'temporary']
+        && data.colorKey in ['blue', 'amber', 'emerald', 'violet', 'rose', 'slate']
+        && data.iconKey in ['rocket', 'wrench', 'clipboard', 'check', 'alert', 'layers']
+        && data.order is number && data.order >= 0 && data.order <= 100
+        && data.fields is list && data.fields.size() <= 20 && (data.fields.size() == 0 || data.fields[0] is map)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidRecord(data) {
+      return data.keys().hasAll([
+          'ownerId', 'categoryId', 'categoryName', 'title', 'location',
+          'contactName', 'status', 'priority', 'notes', 'customData',
+          'collectedDate', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId', 'categoryId', 'categoryName', 'title', 'location',
+          'contactName', 'status', 'priority', 'notes', 'customData',
+          'collectedDate', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.ownerId)
+        && isWorkspaceOwner(data.ownerId)
+        && isValidId(data.categoryId)
+        && data.categoryName is string && data.categoryName.size() >= 1 && data.categoryName.size() <= 80
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
+        && data.location is string && data.location.size() <= 160
+        && data.contactName is string && data.contactName.size() <= 100
+        && data.status in ['moi', 'dang_xu_ly', 'hoan_thanh', 'da_luu_tru']
+        && data.priority in ['thap', 'trung_binh', 'cao']
+        && data.notes is string && data.notes.size() <= 2000
+        && data.customData is map && data.customData.keys().size() <= 25
+        && data.collectedDate is string && data.collectedDate.size() == 10 && data.collectedDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /categories/{categoryId} {
+      allow get: if isValidId(categoryId) && isWorkspaceOwner(existing().ownerId);
+      allow list: if isWorkspaceOwner(existing().ownerId);
+      allow create: if isValidId(categoryId)
+        && isValidCategory(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(categoryId)
+        && isValidCategory(incoming())
+        && isWorkspaceOwner(existing().ownerId)
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().slug == existing().slug
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'description', 'group', 'colorKey', 'iconKey', 'order', 'fields', 'updatedAt'
+        ]);
+      allow delete: if isValidId(categoryId) && isWorkspaceOwner(existing().ownerId);
+    }
+
+    match /records/{recordId} {
+      allow get: if isValidId(recordId) && isWorkspaceOwner(existing().ownerId);
+      allow list: if isWorkspaceOwner(existing().ownerId);
+      allow create: if isValidId(recordId)
+        && isValidRecord(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/categories/$(incoming().categoryId))
+        && isWorkspaceOwner(get(/databases/$(database)/documents/categories/$(incoming().categoryId)).data.ownerId);
+      allow update: if isValidId(recordId)
+        && isValidRecord(incoming())
+        && isWorkspaceOwner(existing().ownerId)
+        && existing().status != 'da_luu_tru'
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'categoryId', 'categoryName', 'title', 'location', 'contactName',
+              'status', 'priority', 'notes', 'customData', 'collectedDate', 'updatedAt'
+            ])
+            && exists(/databases/$(database)/documents/categories/$(incoming().categoryId))
+            && isWorkspaceOwner(get(/databases/$(database)/documents/categories/$(incoming().categoryId)).data.ownerId)
+          )
+          || incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+        );
+      allow delete: if isValidId(recordId) && isWorkspaceOwner(existing().ownerId);
+    }
+  }
+}

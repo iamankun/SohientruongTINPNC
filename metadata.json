@@ -1,0 +1,8 @@
+{
+  "name": "Sổ Hiện Trường",
+  "description": "Ứng dụng di động thu thập thông tin triển khai, bảo trì và các hạng mục mở rộng linh hoạt.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
