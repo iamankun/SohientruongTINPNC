@@ -10,7 +10,7 @@
           "minLength": 1,
           "maxLength": 128,
           "pattern": "^[a-zA-Z0-9_\\-]+$",
-          "description": "Workspace identifier for the category (personal-workspace)."
+          "description": "Firebase Auth UID of the category owner."
         },
         "name": {
           "type": "string",

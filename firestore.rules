@@ -17,8 +17,16 @@ service cloud.firestore {
       return resource.data;
     }
 
-    function isWorkspaceOwner(ownerId) {
-      return ownerId == 'personal-workspace';
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(ownerId) {
+      return isVerifiedUser() && request.auth.uid == ownerId;
     }
 
     function isValidCategory(data) {
@@ -31,7 +39,7 @@ service cloud.firestore {
           'colorKey', 'iconKey', 'order', 'fields', 'createdAt', 'updatedAt'
         ])
         && isValidId(data.ownerId)
-        && isWorkspaceOwner(data.ownerId)
+        && isOwner(data.ownerId)
         && data.name is string && data.name.size() >= 1 && data.name.size() <= 80
         && data.slug is string && data.slug.size() >= 1 && data.slug.size() <= 50 && data.slug.matches('^[a-z0-9\\-]+$')
         && data.description is string && data.description.size() <= 200
@@ -56,7 +64,7 @@ service cloud.firestore {
           'collectedDate', 'createdAt', 'updatedAt'
         ])
         && isValidId(data.ownerId)
-        && isWorkspaceOwner(data.ownerId)
+        && isOwner(data.ownerId)
         && isValidId(data.categoryId)
         && data.categoryName is string && data.categoryName.size() >= 1 && data.categoryName.size() <= 80
         && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
@@ -72,15 +80,15 @@ service cloud.firestore {
     }
 
     match /categories/{categoryId} {
-      allow get: if isValidId(categoryId) && isWorkspaceOwner(existing().ownerId);
-      allow list: if isWorkspaceOwner(existing().ownerId);
+      allow get: if isValidId(categoryId) && isOwner(existing().ownerId);
+      allow list: if isOwner(existing().ownerId);
       allow create: if isValidId(categoryId)
         && isValidCategory(incoming())
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time;
       allow update: if isValidId(categoryId)
         && isValidCategory(incoming())
-        && isWorkspaceOwner(existing().ownerId)
+        && isOwner(existing().ownerId)
         && incoming().ownerId == existing().ownerId
         && incoming().createdAt == existing().createdAt
         && incoming().slug == existing().slug
@@ -88,21 +96,21 @@ service cloud.firestore {
         && incoming().diff(existing()).affectedKeys().hasOnly([
           'name', 'description', 'group', 'colorKey', 'iconKey', 'order', 'fields', 'updatedAt'
         ]);
-      allow delete: if isValidId(categoryId) && isWorkspaceOwner(existing().ownerId);
+      allow delete: if isValidId(categoryId) && isOwner(existing().ownerId);
     }
 
     match /records/{recordId} {
-      allow get: if isValidId(recordId) && isWorkspaceOwner(existing().ownerId);
-      allow list: if isWorkspaceOwner(existing().ownerId);
+      allow get: if isValidId(recordId) && isOwner(existing().ownerId);
+      allow list: if isOwner(existing().ownerId);
       allow create: if isValidId(recordId)
         && isValidRecord(incoming())
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time
         && exists(/databases/$(database)/documents/categories/$(incoming().categoryId))
-        && isWorkspaceOwner(get(/databases/$(database)/documents/categories/$(incoming().categoryId)).data.ownerId);
+        && get(/databases/$(database)/documents/categories/$(incoming().categoryId)).data.ownerId == request.auth.uid;
       allow update: if isValidId(recordId)
         && isValidRecord(incoming())
-        && isWorkspaceOwner(existing().ownerId)
+        && isOwner(existing().ownerId)
         && existing().status != 'da_luu_tru'
         && incoming().ownerId == existing().ownerId
         && incoming().createdAt == existing().createdAt
@@ -114,11 +122,11 @@ service cloud.firestore {
               'status', 'priority', 'notes', 'customData', 'collectedDate', 'updatedAt'
             ])
             && exists(/databases/$(database)/documents/categories/$(incoming().categoryId))
-            && isWorkspaceOwner(get(/databases/$(database)/documents/categories/$(incoming().categoryId)).data.ownerId)
+            && get(/databases/$(database)/documents/categories/$(incoming().categoryId)).data.ownerId == request.auth.uid
           )
           || incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
         );
-      allow delete: if isValidId(recordId) && isWorkspaceOwner(existing().ownerId);
+      allow delete: if isValidId(recordId) && isOwner(existing().ownerId);
     }
   }
 }

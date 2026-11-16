@@ -1,4 +1,4 @@
-import { ArrowRight, Plus, SlidersHorizontal } from 'lucide-react';
+import { ArrowRight, Plus } from 'lucide-react';
 import { COLOR_STYLES, formatDateVn, getTodayIsoDate, PRIORITY_LABELS, STATUS_LABELS } from '../defaults';
 import type { Category, FieldRecord } from '../types';
 import { CategoryIcon } from './CategoryIcon';
@@ -9,7 +9,6 @@ interface OverviewViewProps {
   onQuickCollect: (categoryId: string) => void;
   onFilterCategory: (categoryId: string) => void;
   onSelectRecord: (record: FieldRecord) => void;
-  onOpenSchema: () => void;
   onDevelopingCategory: (category: Category) => void;
 }
 
@@ -19,7 +18,6 @@ export function OverviewView({
   onQuickCollect,
   onFilterCategory,
   onSelectRecord,
-  onOpenSchema,
   onDevelopingCategory,
 }: OverviewViewProps) {
   const today = getTodayIsoDate();
@@ -99,11 +97,11 @@ export function OverviewView({
                     </h3>
                     <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 tabular-nums">
                       {total} bản ghi <span aria-hidden="true">·</span>{' '}
-                      {cat.slug === 'bao-tri' ? '11 bước BOT' : `${cat.fields.length} trường dữ liệu`}
+                      {cat.slug === 'bao-tri' ? '12 bước BOT' : `${cat.fields.length} trường dữ liệu`}
                     </p>
                     <p className="mt-2 text-sm text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
                       {cat.slug === 'bao-tri'
-                        ? 'Thu thập theo kịch bản tin nhắn BOT gồm 11 bước kiểm tra thiết bị và xử lý.'
+                        ? 'Thu thập theo kịch bản tin nhắn BOT gồm 12 bước kiểm tra thiết bị, xử lý và tọa độ.'
                         : cat.description || 'Thu thập thông tin hiện trường cho hạng mục này.'}
                     </p>
                   </div>
@@ -133,26 +131,16 @@ export function OverviewView({
       </section>
 
       <section aria-labelledby="temp-categories-heading" className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2
-              id="temp-categories-heading"
-              className="text-base sm:text-lg font-display font-semibold text-slate-900 dark:text-slate-100"
-            >
-              Hạng mục mở rộng
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              4 mục tạm thời đang trong giai đoạn phát triển
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onOpenSchema}
-            className="min-h-[44px] px-3 py-2 rounded-xl text-xs font-medium text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
+        <div>
+          <h2
+            id="temp-categories-heading"
+            className="text-base sm:text-lg font-display font-semibold text-slate-900 dark:text-slate-100"
           >
-            <SlidersHorizontal className="w-4 h-4" aria-hidden="true" />
-            <span>Cấu trúc</span>
-          </button>
+            Hạng mục mở rộng
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            4 mục tạm thời đang trong giai đoạn phát triển
+          </p>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

@@ -254,3 +254,19 @@ export function formatDateVn(isoDate: string): string {
 export function sortCategories(list: Category[]): Category[] {
   return [...list].sort((a, b) => a.order - b.order || a.name.localeCompare(b.name, 'vi'));
 }
+
+export function createGuestCategories(): Category[] {
+  return DEFAULT_CATEGORY_TEMPLATES.map((tpl) => ({
+    id: buildCategoryDocId('guest', tpl.slug),
+    ownerId: 'guest',
+    name: tpl.name,
+    slug: tpl.slug,
+    description: tpl.description,
+    group: tpl.group,
+    colorKey: tpl.colorKey,
+    iconKey: tpl.iconKey,
+    order: tpl.order,
+    fields: tpl.fields,
+  }));
+}
+

@@ -50,4 +50,4 @@ export interface FieldRecord {
   updatedAt?: Timestamp | null;
 }
 
-export type AppTab = 'overview' | 'collect' | 'records' | 'schema';
+export type AppTab = 'overview' | 'collect' | 'records';

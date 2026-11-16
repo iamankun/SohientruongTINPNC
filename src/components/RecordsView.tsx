@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
-import { Download, Plus, Search } from 'lucide-react';
+import type { User } from 'firebase/auth';
+import { Download, LogIn, Plus, Search } from 'lucide-react';
 import { MAINTENANCE_FIELD_LABELS } from '../data/maintenanceScript';
 import { COLOR_STYLES, formatDateVn, PRIORITY_LABELS, STATUS_LABELS } from '../defaults';
 import type { Category, FieldRecord, RecordStatus } from '../types';
 import { CategoryIcon } from './CategoryIcon';
 
 interface RecordsViewProps {
+  user: User | null;
   categories: Category[];
   records: FieldRecord[];
   activeCategoryFilter: string;
@@ -13,6 +15,7 @@ interface RecordsViewProps {
   onSelectRecord: (record: FieldRecord) => void;
   onCreateNew: (categoryId?: string) => void;
   onDevelopingCategory: (category: Category) => void;
+  onRequireAuth: () => void;
 }
 
 const STATUS_FILTER_OPTIONS: Array<{ value: 'all' | RecordStatus; label: string }> = [
@@ -24,6 +27,7 @@ const STATUS_FILTER_OPTIONS: Array<{ value: 'all' | RecordStatus; label: string 
 ];
 
 export function RecordsView({
+  user,
   categories,
   records,
   activeCategoryFilter,
@@ -31,6 +35,7 @@ export function RecordsView({
   onSelectRecord,
   onCreateNew,
   onDevelopingCategory,
+  onRequireAuth,
 }: RecordsViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | RecordStatus>('all');
@@ -222,7 +227,26 @@ export function RecordsView({
         <span>Hiển thị {filteredRecords.length} bản ghi</span>
       </div>
 
-      {filteredRecords.length === 0 ? (
+      {!user ? (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center space-y-3">
+          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+            Đăng nhập để lưu và xem danh sách bản ghi
+          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+            Bạn vẫn có thể vào mục Thu thập để điền biểu mẫu hoặc chạy BOT Bảo Trì 12 bước. Hãy đăng nhập Google để lưu và quản lý dữ liệu đã ghi nhận.
+          </p>
+          <div className="pt-1 flex justify-center">
+            <button
+              type="button"
+              onClick={onRequireAuth}
+              className="min-h-[44px] px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium inline-flex items-center gap-2"
+            >
+              <LogIn className="w-4 h-4" aria-hidden="true" />
+              <span>Đăng nhập bằng Google</span>
+            </button>
+          </div>
+        </div>
+      ) : filteredRecords.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center space-y-3">
           <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
             Không có bản ghi phù hợp

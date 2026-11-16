@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Check, Copy, RotateCcw, Send, Undo2 } from 'lucide-react';
+import type { User } from 'firebase/auth';
+import { Check, Copy, LogIn, MapPin, RotateCcw, Send, Undo2 } from 'lucide-react';
 import {
   AP_MODELS,
   BOX_MODELS,
@@ -9,7 +10,7 @@ import {
   FLOOR_COUNTS,
   HOUSE_MODELS,
   MODEM_MODELS,
-  TPLINK_ROUTERS,
+  ONT_EXTRA_ROUTERS,
   type FaultGroupName,
 } from '../data/maintenanceScript';
 import { getTodayIsoDate } from '../defaults';
@@ -36,6 +37,7 @@ type BotStepId =
   | 's9_need_md_ap'
   | 's10_agree_buy'
   | 's11_ktv_install'
+  | 's12_location'
   | 'done';
 
 interface MaintenanceAnswers {
@@ -58,6 +60,7 @@ interface MaintenanceAnswers {
   can_trang_bi_md_ap?: string;
   dong_y_mua_md_ap?: string;
   ktv_lap_ap_se?: string;
+  toa_do?: string;
 }
 
 interface ChatMessage {
@@ -73,8 +76,9 @@ interface HistorySnapshot {
 }
 
 interface MaintenanceBotViewProps {
-  uid: string;
+  user: User | null;
   category: Category;
+  onRequireAuth: () => void;
   onSaved: () => void;
 }
 
@@ -98,15 +102,30 @@ const STEP_NUMBER_MAP: Record<BotStepId, number> = {
   s9_need_md_ap: 9,
   s10_agree_buy: 10,
   s11_ktv_install: 11,
-  done: 11,
+  s12_location: 12,
+  done: 12,
 };
+
+function normalizeVnPhone(raw: string): string {
+  const cleaned = raw.replace(/[\s.\-()]/g, '');
+  if (cleaned.startsWith('+840')) {
+    return `0${cleaned.slice(4)}`;
+  }
+  if (cleaned.startsWith('+84')) {
+    return `0${cleaned.slice(3)}`;
+  }
+  if (cleaned.startsWith('84') && cleaned.length >= 11) {
+    return `0${cleaned.slice(2)}`;
+  }
+  return cleaned;
+}
 
 function getPromptForStep(step: BotStepId, answers: MaintenanceAnswers): string {
   switch (step) {
     case 's1_cls':
       return '1. Số CLs trong 6 tháng gần nhất của khách hàng là bao nhiêu?';
     case 's2a_phone':
-      return '2. Nhập số điện thoại liên hệ của khách hàng:';
+      return '2. Nhập số điện thoại liên hệ của khách hàng (nếu nhập +84... sẽ tự chuyển về 0...):';
     case 's2b_name':
       return '2. Tên khách hàng là gì?';
     case 's3a_house':
@@ -116,7 +135,7 @@ function getPromptForStep(step: BotStepId, answers: MaintenanceAnswers): string 
     case 's4a_modem':
       return '4. Chọn mô hình thiết bị Modem đang sử dụng:';
     case 's4b_router':
-      return '4. Vì Modem là ONT, vui lòng chọn thêm Router TP-Link đang dùng:';
+      return '4. Vì Modem là ONT, vui lòng chọn thêm Router TP-Link hoặc AP đi kèm:';
     case 's4c_ap':
       return '4. Chọn thiết bị AP (Access Point) tại nhà khách hàng:';
     case 's4d_box':
@@ -143,8 +162,10 @@ function getPromptForStep(step: BotStepId, answers: MaintenanceAnswers): string 
       return '10. KH có đồng ý mua thêm MD/AP không?';
     case 's11_ktv_install':
       return '11. KTV chủ động lắp AP SE cho KH?';
+    case 's12_location':
+      return '12. Vị trí tọa độ: Bấm lấy tọa độ tại vị trí bạn đang đứng.';
     case 'done':
-      return 'Đã hoàn tất 11 bước thu thập thông tin Bảo Trì. Kiểm tra tóm tắt bên dưới và lưu phiếu.';
+      return 'Đã hoàn tất 12 bước thu thập thông tin Bảo Trì. Kiểm tra tóm tắt bên dưới và lưu phiếu.';
   }
 }
 
@@ -158,7 +179,12 @@ function createInitialMessages(): ChatMessage[] {
   ];
 }
 
-export function MaintenanceBotView({ uid, category, onSaved }: MaintenanceBotViewProps) {
+export function MaintenanceBotView({
+  user,
+  category,
+  onRequireAuth,
+  onSaved,
+}: MaintenanceBotViewProps) {
   const [step, setStep] = useState<BotStepId>('s1_cls');
   const [answers, setAnswers] = useState<MaintenanceAnswers>({});
   const [messages, setMessages] = useState<ChatMessage[]>(createInitialMessages);
@@ -166,6 +192,7 @@ export function MaintenanceBotView({ uid, category, onSaved }: MaintenanceBotVie
 
   const [textInput, setTextInput] = useState('');
   const [optionSearch, setOptionSearch] = useState('');
+  const [locating, setLocating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -181,6 +208,7 @@ export function MaintenanceBotView({ uid, category, onSaved }: MaintenanceBotVie
     setOptionSearch('');
     setTextInput('');
     setErrorMsg('');
+    setLocating(false);
   }, [step]);
 
   const activeChoices = useMemo(() => {
@@ -199,7 +227,7 @@ export function MaintenanceBotView({ uid, category, onSaved }: MaintenanceBotVie
         list = MODEM_MODELS;
         break;
       case 's4b_router':
-        list = TPLINK_ROUTERS;
+        list = ONT_EXTRA_ROUTERS;
         break;
       case 's4c_ap':
         list = AP_MODELS;
@@ -233,19 +261,29 @@ export function MaintenanceBotView({ uid, category, onSaved }: MaintenanceBotVie
   }, [step, answers.nhom_loi, optionSearch]);
 
   const needsSearchBar =
-    step === 's4a_modem' || step === 's4c_ap' || step === 's4d_box' || step === 's6b_fault_detail';
+    step === 's4a_modem' ||
+    step === 's4b_router' ||
+    step === 's4c_ap' ||
+    step === 's4d_box' ||
+    step === 's6b_fault_detail';
 
   const needsTextInput =
-    step === 's1_cls' || step === 's2a_phone' || step === 's2b_name' || step === 's7_resolution';
+    step === 's1_cls' ||
+    step === 's2a_phone' ||
+    step === 's2b_name' ||
+    step === 's7_resolution' ||
+    step === 's12_location';
 
   const advance = (answerText: string) => {
-    const trimmed = answerText.trim();
-    if (!trimmed) return;
+    let finalAnswer = answerText.trim();
+    if (!finalAnswer) return;
 
     if (step === 's2a_phone') {
-      const digits = trimmed.replace(/\s+/g, '');
-      if (!/^[0-9+]{8,15}$/.test(digits)) {
-        setErrorMsg('Số điện thoại chưa hợp lệ (nhập 8–15 chữ số).');
+      finalAnswer = normalizeVnPhone(finalAnswer);
+      if (!/^0\d{9,10}$/.test(finalAnswer)) {
+        setErrorMsg(
+          'Số điện thoại không hợp lệ. Vui lòng nhập 10–11 số (vd: 0354717557 hoặc +84354717557).'
+        );
         return;
       }
     }
@@ -259,28 +297,28 @@ export function MaintenanceBotView({ uid, category, onSaved }: MaintenanceBotVie
 
     switch (step) {
       case 's1_cls':
-        nextAnswers.so_cls = trimmed;
+        nextAnswers.so_cls = finalAnswer;
         nextStep = 's2a_phone';
         break;
       case 's2a_phone':
-        nextAnswers.sdt_kh = trimmed;
+        nextAnswers.sdt_kh = finalAnswer;
         nextStep = 's2b_name';
         break;
       case 's2b_name':
-        nextAnswers.ten_kh = trimmed;
+        nextAnswers.ten_kh = finalAnswer;
         nextStep = 's3a_house';
         break;
       case 's3a_house':
-        nextAnswers.mo_hinh_nha = trimmed;
+        nextAnswers.mo_hinh_nha = finalAnswer;
         nextStep = 's3b_floors';
         break;
       case 's3b_floors':
-        nextAnswers.so_tang = trimmed;
+        nextAnswers.so_tang = finalAnswer;
         nextStep = 's4a_modem';
         break;
       case 's4a_modem':
-        nextAnswers.modem = trimmed;
-        if (trimmed === 'ONT') {
+        nextAnswers.modem = finalAnswer;
+        if (finalAnswer === 'ONT') {
           nextStep = 's4b_router';
         } else {
           delete nextAnswers.router_tp_link;
@@ -288,64 +326,68 @@ export function MaintenanceBotView({ uid, category, onSaved }: MaintenanceBotVie
         }
         break;
       case 's4b_router':
-        nextAnswers.router_tp_link = trimmed;
+        nextAnswers.router_tp_link = finalAnswer;
         nextStep = 's4c_ap';
         break;
       case 's4c_ap':
-        nextAnswers.ap = trimmed;
+        nextAnswers.ap = finalAnswer;
         nextStep = 's4d_box';
         break;
       case 's4d_box':
-        nextAnswers.box = trimmed;
+        nextAnswers.box = finalAnswer;
         nextStep = 's5_devices';
         break;
       case 's5_devices':
-        nextAnswers.tong_thiet_bi = trimmed;
+        nextAnswers.tong_thiet_bi = finalAnswer;
         nextStep = 's6a_fault_group';
         break;
       case 's6a_fault_group':
-        nextAnswers.nhom_loi = trimmed as FaultGroupName;
+        nextAnswers.nhom_loi = finalAnswer as FaultGroupName;
         nextStep = 's6b_fault_detail';
         break;
       case 's6b_fault_detail':
-        nextAnswers.nguyen_nhan_loi = trimmed;
+        nextAnswers.nguyen_nhan_loi = finalAnswer;
         nextStep = 's7_resolution';
         break;
       case 's7_resolution':
-        nextAnswers.phuong_an_xu_ly = trimmed;
+        nextAnswers.phuong_an_xu_ly = finalAnswer;
         nextStep = 's8a_tool_my_bao';
         break;
       case 's8a_tool_my_bao':
-        nextAnswers.tool_my_bao = trimmed;
+        nextAnswers.tool_my_bao = finalAnswer;
         nextStep = 's8b_has_ap';
         break;
       case 's8b_has_ap':
-        nextAnswers.da_co_ap = trimmed;
+        nextAnswers.da_co_ap = finalAnswer;
         nextStep = 's8c_want_ap';
         break;
       case 's8c_want_ap':
-        nextAnswers.muon_lap_ap = trimmed;
-        if (trimmed === 'Không') {
+        nextAnswers.muon_lap_ap = finalAnswer;
+        if (finalAnswer === 'Không') {
           nextAnswers.can_trang_bi_md_ap = 'Không';
           nextAnswers.dong_y_mua_md_ap = 'Không';
           nextAnswers.ktv_lap_ap_se = 'Không';
           extraBotNote =
             'Đã tự động chọn "Không" cho các bước 9, 10, 11.';
-          nextStep = 'done';
+          nextStep = 's12_location';
         } else {
           nextStep = 's9_need_md_ap';
         }
         break;
       case 's9_need_md_ap':
-        nextAnswers.can_trang_bi_md_ap = trimmed;
+        nextAnswers.can_trang_bi_md_ap = finalAnswer;
         nextStep = 's10_agree_buy';
         break;
       case 's10_agree_buy':
-        nextAnswers.dong_y_mua_md_ap = trimmed;
+        nextAnswers.dong_y_mua_md_ap = finalAnswer;
         nextStep = 's11_ktv_install';
         break;
       case 's11_ktv_install':
-        nextAnswers.ktv_lap_ap_se = trimmed;
+        nextAnswers.ktv_lap_ap_se = finalAnswer;
+        nextStep = 's12_location';
+        break;
+      case 's12_location':
+        nextAnswers.toa_do = finalAnswer;
         nextStep = 'done';
         break;
       case 'done':
@@ -353,7 +395,7 @@ export function MaintenanceBotView({ uid, category, onSaved }: MaintenanceBotVie
     }
 
     const appended: ChatMessage[] = [
-      { id: `u-${Date.now()}`, sender: 'user', text: trimmed },
+      { id: `u-${Date.now()}`, sender: 'user', text: finalAnswer },
     ];
     if (extraBotNote) {
       appended.push({
@@ -371,6 +413,32 @@ export function MaintenanceBotView({ uid, category, onSaved }: MaintenanceBotVie
     setAnswers(nextAnswers);
     setMessages((prev) => [...prev, ...appended]);
     setStep(nextStep);
+  };
+
+  const handleGetCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setErrorMsg('Thiết bị hoặc trình duyệt không hỗ trợ định vị GPS. Vui lòng nhập tọa độ bên dưới.');
+      return;
+    }
+    setLocating(true);
+    setErrorMsg('');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocating(false);
+        const lat = position.coords.latitude.toFixed(6);
+        const lng = position.coords.longitude.toFixed(6);
+        advance(`${lat}, ${lng}`);
+      },
+      (geoErr) => {
+        setLocating(false);
+        if (geoErr.code === geoErr.PERMISSION_DENIED) {
+          setErrorMsg('Bạn đã từ chối quyền vị trí. Hãy cấp quyền GPS hoặc nhập tọa độ thủ công.');
+        } else {
+          setErrorMsg('Không thể lấy tọa độ GPS lúc này. Hãy thử lại hoặc nhập thủ công.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    );
   };
 
   const handleTextSubmit = (e: FormEvent) => {
@@ -413,6 +481,7 @@ export function MaintenanceBotView({ uid, category, onSaved }: MaintenanceBotVie
       `9. Cần trang bị MD/AP: ${answers.can_trang_bi_md_ap || ''}`,
       `10. Đồng ý mua thêm MD/AP: ${answers.dong_y_mua_md_ap || ''}`,
       `11. KTV chủ động lắp AP SE: ${answers.ktv_lap_ap_se || ''}`,
+      `12. Vị trí tọa độ: ${answers.toa_do || ''}`,
     ];
     return lines.join('\n');
   };
@@ -428,6 +497,10 @@ export function MaintenanceBotView({ uid, category, onSaved }: MaintenanceBotVie
   };
 
   const handleSaveRecord = async () => {
+    if (!user) {
+      onRequireAuth();
+      return;
+    }
     setSaving(true);
     setErrorMsg('');
     try {
@@ -451,6 +524,7 @@ export function MaintenanceBotView({ uid, category, onSaved }: MaintenanceBotVie
         can_trang_bi_md_ap: answers.can_trang_bi_md_ap || 'Không',
         dong_y_mua_md_ap: answers.dong_y_mua_md_ap || 'Không',
         ktv_lap_ap_se: answers.ktv_lap_ap_se || 'Không',
+        toa_do: answers.toa_do || '',
       };
 
       const title = `${answers.ten_kh || 'Khách hàng'} — ${answers.nguyen_nhan_loi || 'Bảo Trì'}`.slice(
@@ -461,7 +535,7 @@ export function MaintenanceBotView({ uid, category, onSaved }: MaintenanceBotVie
         .replace(/^ · | · $/g, '')
         .slice(0, 160);
 
-      await createRecord(uid, {
+      await createRecord(user.uid, {
         categoryId: category.id,
         categoryName: category.name,
         title,
@@ -493,7 +567,7 @@ export function MaintenanceBotView({ uid, category, onSaved }: MaintenanceBotVie
             Trợ lý Bảo Trì
           </p>
           <p className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
-            Bước {currentStepNum}/11
+            Bước {currentStepNum}/12
           </p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
@@ -539,7 +613,7 @@ export function MaintenanceBotView({ uid, category, onSaved }: MaintenanceBotVie
         {step === 'done' && (
           <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3 text-xs sm:text-sm">
             <p className="font-display font-semibold text-slate-900 dark:text-slate-100">
-              Tóm tắt 11 bước Bảo Trì
+              Tóm tắt 12 bước Bảo Trì
             </p>
             <div className="space-y-1.5 text-slate-700 dark:text-slate-300 leading-relaxed">
               <p>1. Số CLs (6 tháng): <strong>{answers.so_cls}</strong></p>
@@ -547,7 +621,7 @@ export function MaintenanceBotView({ uid, category, onSaved }: MaintenanceBotVie
               <p>3. Mô hình: <strong>{answers.mo_hinh_nha}</strong> · Tầng: <strong>{answers.so_tang}</strong></p>
               <p>
                 4. Thiết bị: Modem <strong>{answers.modem}</strong>
-                {answers.router_tp_link ? ` (Router: ${answers.router_tp_link})` : ''} · AP{' '}
+                {answers.router_tp_link ? ` (Kèm: ${answers.router_tp_link})` : ''} · AP{' '}
                 <strong>{answers.ap}</strong> · Box <strong>{answers.box}</strong>
               </p>
               <p>5. Tổng thiết bị SD: <strong>{answers.tong_thiet_bi}</strong></p>
@@ -560,6 +634,9 @@ export function MaintenanceBotView({ uid, category, onSaved }: MaintenanceBotVie
               <p>9. Cần trang bị MD/AP: <strong>{answers.can_trang_bi_md_ap}</strong></p>
               <p>10. Đồng ý mua thêm MD/AP: <strong>{answers.dong_y_mua_md_ap}</strong></p>
               <p>11. KTV lắp AP SE: <strong>{answers.ktv_lap_ap_se}</strong></p>
+              <p className="font-mono text-xs">
+                12. Vị trí tọa độ: <strong>{answers.toa_do}</strong>
+              </p>
             </div>
           </div>
         )}
@@ -589,7 +666,21 @@ export function MaintenanceBotView({ uid, category, onSaved }: MaintenanceBotVie
       <div className="p-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/80 space-y-2.5">
         {step === 'done' ? (
           <div className="space-y-2">
-            {!savedSuccess ? (
+            {!user ? (
+              <>
+                <p className="text-xs text-slate-600 dark:text-slate-400 px-1">
+                  Bạn chưa đăng nhập nên chưa thể lưu phiếu lên hệ thống. Dữ liệu vẫn được giữ nguyên nếu bạn đăng nhập ngay bây giờ.
+                </p>
+                <button
+                  type="button"
+                  onClick={onRequireAuth}
+                  className="w-full min-h-[48px] px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold flex items-center justify-center gap-2"
+                >
+                  <LogIn className="w-4 h-4 shrink-0" aria-hidden="true" />
+                  <span>Đăng nhập để lưu phiếu Bảo Trì</span>
+                </button>
+              </>
+            ) : !savedSuccess ? (
               <button
                 type="button"
                 disabled={saving}
@@ -637,11 +728,33 @@ export function MaintenanceBotView({ uid, category, onSaved }: MaintenanceBotVie
               />
             )}
 
+            {step === 's12_location' && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={locating}
+                  onClick={handleGetCurrentLocation}
+                  className="flex-1 min-h-[48px] px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.99] transition-all"
+                >
+                  <MapPin className="w-4 h-4 shrink-0" aria-hidden="true" />
+                  <span>{locating ? 'Đang lấy tọa độ GPS...' : 'Lấy tọa độ đang đứng'}</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={locating}
+                  onClick={() => advance('Không lấy được tọa độ')}
+                  className="min-h-[48px] px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap"
+                >
+                  Bỏ qua
+                </button>
+              </div>
+            )}
+
             {activeChoices.length > 0 && (
               <div
                 className={`grid gap-2 ${
                   step === 's1_cls'
-                    ? 'grid-cols-5'
+                    ? 'grid-cols-6'
                     : step === 's3b_floors' || step === 's5_devices'
                       ? 'grid-cols-3 sm:grid-cols-6'
                       : activeChoices.length === 2
@@ -675,15 +788,27 @@ export function MaintenanceBotView({ uid, category, onSaved }: MaintenanceBotVie
                         : 'text'
                   }
                   value={textInput}
-                  onChange={(e) => setTextInput(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (step === 's2a_phone') {
+                      const compact = val.replace(/[\s.\-()]/g, '');
+                      if (/^\+?84\d{9,10}$/.test(compact)) {
+                        setTextInput(normalizeVnPhone(compact));
+                        return;
+                      }
+                    }
+                    setTextInput(val);
+                  }}
                   placeholder={
                     step === 's1_cls'
-                      ? 'Hoặc nhập số khác (vd: 0, 6)...'
+                      ? 'Hoặc nhập số khác (vd: 6, 7)...'
                       : step === 's2a_phone'
-                        ? 'Nhập số điện thoại (vd: 0901234567)...'
+                        ? 'Nhập SĐT (vd: 0354717557 hoặc +84354717557)...'
                         : step === 's2b_name'
                           ? 'Nhập tên khách hàng...'
-                          : 'Nhập phương án xử lý đã thực hiện...'
+                          : step === 's12_location'
+                            ? 'Hoặc nhập tọa độ thủ công (vd: 10.776889, 106.700806)...'
+                            : 'Nhập phương án xử lý đã thực hiện...'
                   }
                   className="flex-1 min-h-[48px] px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-base text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />

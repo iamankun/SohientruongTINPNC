@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Check, SlidersHorizontal } from 'lucide-react';
+import type { User } from 'firebase/auth';
+import { Check, LogIn } from 'lucide-react';
 import { COLOR_STYLES, getTodayIsoDate, PRIORITY_LABELS, STATUS_LABELS } from '../defaults';
 import { createRecord } from '../services/firestoreService';
 import type { Category, RecordPriority, RecordStatus } from '../types';
@@ -7,12 +8,12 @@ import { CategoryIcon } from './CategoryIcon';
 import { MaintenanceBotView } from './MaintenanceBotView';
 
 interface CollectViewProps {
-  uid: string;
+  user: User | null;
   categories: Category[];
   selectedCategoryId: string;
   onSelectCategory: (id: string) => void;
-  onEditCategoryFields: (categoryId: string) => void;
   onDevelopingCategory: (category: Category) => void;
+  onRequireAuth: () => void;
   onSaved: () => void;
 }
 
@@ -20,12 +21,12 @@ const ACTIVE_STATUSES: RecordStatus[] = ['moi', 'dang_xu_ly', 'hoan_thanh'];
 const PRIORITIES: RecordPriority[] = ['thap', 'trung_binh', 'cao'];
 
 export function CollectView({
-  uid,
+  user,
   categories,
   selectedCategoryId,
   onSelectCategory,
-  onEditCategoryFields,
   onDevelopingCategory,
+  onRequireAuth,
   onSaved,
 }: CollectViewProps) {
   const coreCategories = categories.filter((c) => c.group === 'core');
@@ -47,7 +48,7 @@ export function CollectView({
 
   useEffect(() => {
     setCustomData({});
-  }, [activeCategory?.id]);
+  }, [activeCategory?.slug]);
 
   if (!activeCategory) {
     return (
@@ -93,9 +94,14 @@ export function CollectView({
       }
     }
 
+    if (!user) {
+      onRequireAuth();
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await createRecord(uid, {
+      await createRecord(user.uid, {
         categoryId: activeCategory.id,
         categoryName: activeCategory.name,
         title: cleanTitle,
@@ -186,12 +192,25 @@ export function CollectView({
 
       {activeCategory.slug === 'bao-tri' ? (
         <MaintenanceBotView
-          uid={uid}
+          user={user}
           category={activeCategory}
+          onRequireAuth={onRequireAuth}
           onSaved={onSaved}
         />
       ) : (
         <>
+          {!user && (
+            <div className="bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 text-amber-900 dark:text-amber-200 rounded-2xl px-4 py-3 text-xs sm:text-sm flex items-center justify-between gap-3">
+              <span>Bạn vẫn có thể nhập đầy đủ thông tin, nhưng cần đăng nhập Google để lưu.</span>
+              <button
+                type="button"
+                onClick={onRequireAuth}
+                className="min-h-[36px] px-3 py-1.5 rounded-xl bg-amber-900 dark:bg-amber-400 text-white dark:text-slate-950 text-xs font-semibold whitespace-nowrap shrink-0"
+              >
+                Đăng nhập
+              </button>
+            </div>
+          )}
           {successBanner && (
             <div
               role="status"
@@ -342,23 +361,13 @@ export function CollectView({
         </div>
 
         <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-display font-semibold text-slate-900 dark:text-slate-100">
-              Thông tin chi tiết ({activeCategory.name})
-            </h3>
-            <button
-              type="button"
-              onClick={() => onEditCategoryFields(activeCategory.id)}
-              className="min-h-[36px] px-2.5 py-1 rounded-lg text-xs font-medium text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 flex items-center gap-1.5 whitespace-nowrap"
-            >
-              <SlidersHorizontal className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>Tùy chỉnh trường</span>
-            </button>
-          </div>
+          <h3 className="text-sm font-display font-semibold text-slate-900 dark:text-slate-100">
+            Thông tin chi tiết ({activeCategory.name})
+          </h3>
 
           {activeCategory.fields.length === 0 ? (
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Hạng mục này chưa có trường riêng. Bạn có thể bấm “Tùy chỉnh trường” để thêm bất cứ lúc nào.
+              Hạng mục này hiện chưa có trường thông tin bổ sung.
             </p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -483,9 +492,16 @@ export function CollectView({
         <button
           type="submit"
           disabled={submitting}
-          className="w-full min-h-[48px] px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold active:scale-[0.99] transition-all"
+          className="w-full min-h-[48px] px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold active:scale-[0.99] transition-all flex items-center justify-center gap-2"
         >
-          {submitting ? 'Đang lưu...' : `Lưu vào mục ${activeCategory.name}`}
+          {!user && <LogIn className="w-4 h-4 shrink-0" aria-hidden="true" />}
+          <span>
+            {!user
+              ? `Đăng nhập để lưu vào mục ${activeCategory.name}`
+              : submitting
+                ? 'Đang lưu...'
+                : `Lưu vào mục ${activeCategory.name}`}
+          </span>
         </button>
       </form>
         </>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { User } from 'firebase/auth';
 import { Lock, Pencil, Trash2, X } from 'lucide-react';
 import { MAINTENANCE_FIELD_LABELS } from '../data/maintenanceScript';
 import { COLOR_STYLES, formatDateVn, PRIORITY_LABELS, STATUS_LABELS } from '../defaults';
@@ -7,15 +8,23 @@ import type { Category, FieldRecord, RecordPriority, RecordStatus } from '../typ
 import { CategoryIcon } from './CategoryIcon';
 
 interface RecordDetailSheetProps {
+  user: User | null;
   record: FieldRecord | null;
   categories: Category[];
+  onRequireAuth: () => void;
   onClose: () => void;
 }
 
 const EDITABLE_STATUSES: RecordStatus[] = ['moi', 'dang_xu_ly', 'hoan_thanh'];
 const PRIORITIES: RecordPriority[] = ['thap', 'trung_binh', 'cao'];
 
-export function RecordDetailSheet({ record, categories, onClose }: RecordDetailSheetProps) {
+export function RecordDetailSheet({
+  user,
+  record,
+  categories,
+  onRequireAuth,
+  onClose,
+}: RecordDetailSheetProps) {
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmLock, setConfirmLock] = useState(false);
@@ -55,6 +64,10 @@ export function RecordDetailSheet({ record, categories, onClose }: RecordDetailS
   const isLocked = record.status === 'da_luu_tru';
 
   const handleSaveEdit = async () => {
+    if (!user) {
+      onRequireAuth();
+      return;
+    }
     if (!title.trim()) {
       setErrorMsg('Tiêu đề không được để trống.');
       return;
@@ -84,6 +97,10 @@ export function RecordDetailSheet({ record, categories, onClose }: RecordDetailS
 
   const handleQuickStatus = async (nextStatus: RecordStatus) => {
     if (isLocked) return;
+    if (!user) {
+      onRequireAuth();
+      return;
+    }
     setBusy(true);
     setErrorMsg('');
     try {
@@ -98,6 +115,10 @@ export function RecordDetailSheet({ record, categories, onClose }: RecordDetailS
   };
 
   const handleDelete = async () => {
+    if (!user) {
+      onRequireAuth();
+      return;
+    }
     setBusy(true);
     setErrorMsg('');
     try {

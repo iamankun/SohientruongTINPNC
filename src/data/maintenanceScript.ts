@@ -1,4 +1,4 @@
-export const CLS_OPTIONS = ['1', '2', '3', '4', '5'];
+export const CLS_OPTIONS = ['0', '1', '2', '3', '4', '5'];
 
 export const HOUSE_MODELS = [
   'Nhà cấp 1',
@@ -82,6 +82,14 @@ export const AP_MODELS = [
   'BE15000Z',
 ];
 
+export const ONT_EXTRA_ROUTERS = Array.from(
+  new Set([
+    ...TPLINK_ROUTERS.filter((m) => m !== 'Không dùng Router rời'),
+    ...AP_MODELS.filter((m) => m !== 'Không'),
+    'Không dùng thêm',
+  ])
+);
+
 export const BOX_MODELS = [
   'Không',
   'FPT Play HD',
@@ -148,7 +156,7 @@ export const MAINTENANCE_FIELD_LABELS: Record<string, string> = {
   mo_hinh_nha: '3. Mô hình nhà',
   so_tang: '3. Số tầng hiện có',
   modem: '4. Modem',
-  router_tp_link: '4. Router TP-Link (kèm ONT)',
+  router_tp_link: '4. Router TP-Link / AP (kèm ONT)',
   ap: '4. Thiết bị AP',
   box: '4. Thiết bị Box',
   tong_thiet_bi: '5. Tổng thiết bị SD',
@@ -161,4 +169,5 @@ export const MAINTENANCE_FIELD_LABELS: Record<string, string> = {
   can_trang_bi_md_ap: '9. KH cần trang bị MD/AP',
   dong_y_mua_md_ap: '10. KH đồng ý mua thêm MD/AP',
   ktv_lap_ap_se: '11. KTV chủ động lắp AP SE',
+  toa_do: '12. Vị trí tọa độ',
 };

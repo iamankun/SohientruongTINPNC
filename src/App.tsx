@@ -1,21 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import {
   ClipboardList,
   Home,
+  LogIn,
   Moon,
   Plus,
   PlusCircle,
-  SlidersHorizontal,
   Sun,
 } from 'lucide-react';
-import { ErrorBoundary } from './components/ErrorBoundary';
-import { DevelopingModal } from './components/DevelopingModal';
-import { OverviewView } from './components/OverviewView';
+import { AuthModal } from './components/AuthModal';
 import { CollectView } from './components/CollectView';
-import { RecordsView } from './components/RecordsView';
+import { DevelopingModal } from './components/DevelopingModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { Footer } from './components/Footer';
+import { OverviewView } from './components/OverviewView';
 import { RecordDetailSheet } from './components/RecordDetailSheet';
-import { SchemaView } from './components/SchemaView';
-import { sortCategories } from './defaults';
+import { RecordsView } from './components/RecordsView';
+import { UserAvatar } from './components/UserAvatar';
+import { createGuestCategories, sortCategories } from './defaults';
+import { auth } from './firebase';
 import {
   migrateLegacyTempCategories,
   seedDefaultCategories,
@@ -24,18 +28,22 @@ import {
 } from './services/firestoreService';
 import type { AppTab, Category, FieldRecord } from './types';
 
-const WORKSPACE_OWNER_ID = 'personal-workspace';
-
 function AppContent() {
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalReason, setAuthModalReason] = useState<'save' | 'account'>('account');
+
+  const [categories, setCategories] = useState<Category[]>(() => createGuestCategories());
   const [records, setRecords] = useState<FieldRecord[]>([]);
-  const [dataLoading, setDataLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(false);
   const [dataError, setDataError] = useState('');
 
   const [activeTab, setActiveTab] = useState<AppTab>('overview');
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
+    () => createGuestCategories()[0]?.id || ''
+  );
   const [recordsCategoryFilter, setRecordsCategoryFilter] = useState<string>('all');
-  const [schemaCategoryId, setSchemaCategoryId] = useState<string>('');
   const [selectedRecord, setSelectedRecord] = useState<FieldRecord | null>(null);
   const [developingCategory, setDevelopingCategory] = useState<Category | null>(null);
 
@@ -45,7 +53,12 @@ function AppContent() {
   });
 
   const seededRef = useRef<string | null>(null);
-  const migratedRef = useRef<boolean>(false);
+  const migratedRef = useRef<string | null>(null);
+  const categoriesRef = useRef<Category[]>(categories);
+
+  useEffect(() => {
+    categoriesRef.current = categories;
+  }, [categories]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -59,33 +72,73 @@ function AppContent() {
   }, [darkMode]);
 
   useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
+      setAuthReady(true);
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    if (!authReady) return;
+
+    if (!user) {
+      const guestList = createGuestCategories();
+      const prevSlug = categoriesRef.current.find((c) => c.id === selectedCategoryId)?.slug;
+      setCategories(guestList);
+      setRecords([]);
+      setSelectedRecord(null);
+      setDataLoading(false);
+      setDataError('');
+      setSelectedCategoryId((prev) => {
+        if (prev && guestList.some((c) => c.id === prev && c.group === 'core')) {
+          return prev;
+        }
+        if (prevSlug) {
+          const matched = guestList.find((c) => c.slug === prevSlug && c.group === 'core');
+          if (matched) return matched.id;
+        }
+        return guestList.find((c) => c.group === 'core')?.id || guestList[0]?.id || '';
+      });
+      return;
+    }
+
     setDataLoading(true);
     setDataError('');
 
+    const uid = user.uid;
+
     const unsubCats = subscribeCategories(
-      WORKSPACE_OWNER_ID,
+      uid,
       async (list) => {
-        if (list.length === 0 && seededRef.current !== WORKSPACE_OWNER_ID) {
-          seededRef.current = WORKSPACE_OWNER_ID;
+        if (list.length === 0 && seededRef.current !== uid) {
+          seededRef.current = uid;
           try {
-            await seedDefaultCategories(WORKSPACE_OWNER_ID);
+            await seedDefaultCategories(uid);
           } catch {
             setDataError('Không thể khởi tạo các hạng mục mặc định.');
+            setDataLoading(false);
           }
           return;
         }
-        if (!migratedRef.current) {
-          migratedRef.current = true;
-          const didMigrate = await migrateLegacyTempCategories(WORKSPACE_OWNER_ID, list);
+        if (migratedRef.current !== uid) {
+          migratedRef.current = uid;
+          const didMigrate = await migrateLegacyTempCategories(uid, list);
           if (didMigrate) return;
         }
         const sorted = sortCategories(list);
+        const prevSlug = categoriesRef.current.find((c) => c.id === selectedCategoryId)?.slug;
         setCategories(sorted);
-        setSelectedCategoryId((prev) =>
-          prev && sorted.some((c) => c.id === prev && c.group === 'core')
-            ? prev
-            : sorted.find((c) => c.group === 'core')?.id || sorted[0]?.id || ''
-        );
+        setSelectedCategoryId((prev) => {
+          if (prev && sorted.some((c) => c.id === prev && c.group === 'core')) {
+            return prev;
+          }
+          if (prevSlug) {
+            const matched = sorted.find((c) => c.slug === prevSlug && c.group === 'core');
+            if (matched) return matched.id;
+          }
+          return sorted.find((c) => c.group === 'core')?.id || sorted[0]?.id || '';
+        });
         setDataLoading(false);
       },
       () => {
@@ -95,7 +148,7 @@ function AppContent() {
     );
 
     const unsubRecs = subscribeRecords(
-      WORKSPACE_OWNER_ID,
+      uid,
       (list) => {
         setRecords(list);
       },
@@ -108,7 +161,7 @@ function AppContent() {
       unsubCats();
       unsubRecs();
     };
-  }, []);
+  }, [authReady, user?.uid]);
 
   useEffect(() => {
     if (selectedRecord) {
@@ -118,6 +171,11 @@ function AppContent() {
       }
     }
   }, [records, selectedRecord]);
+
+  const openAuthModal = (reason: 'save' | 'account') => {
+    setAuthModalReason(reason);
+    setAuthModalOpen(true);
+  };
 
   const handleQuickCollect = (categoryId?: string) => {
     if (categoryId) {
@@ -133,37 +191,29 @@ function AppContent() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleEditCategoryFields = (categoryId: string) => {
-    setSchemaCategoryId(categoryId);
-    setActiveTab('schema');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   const navItems: Array<{ id: AppTab; label: string }> = [
     { id: 'overview', label: 'Tổng quan' },
     { id: 'collect', label: 'Thu thập' },
     { id: 'records', label: 'Danh sách' },
-    { id: 'schema', label: 'Cấu trúc' },
   ];
 
   const mobileTitleMap: Record<AppTab, string> = {
-    overview: 'Sổ Hiện Trường',
+    overview: 'Sổ hiện trường TINPNC',
     collect: 'Thu thập thông tin',
     records: 'Danh sách ghi nhận',
-    schema: 'Cấu trúc hạng mục',
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-20 lg:pb-12">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       <header className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-12 lg:h-16 flex items-center justify-between gap-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-12 lg:h-16 flex items-center justify-between gap-3 lg:gap-8">
           <button
             type="button"
             onClick={() => setActiveTab('overview')}
-            className="text-base lg:text-lg font-display font-bold tracking-tight text-slate-900 dark:text-slate-100 whitespace-nowrap shrink-0 text-left"
+            className="min-w-0 text-base lg:text-lg font-display font-bold tracking-tight text-slate-900 dark:text-slate-100 whitespace-nowrap lg:shrink-0 text-left truncate"
           >
             <span className="lg:hidden">{mobileTitleMap[activeTab]}</span>
-            <span className="hidden lg:inline">Sổ Hiện Trường</span>
+            <span className="hidden lg:inline">Sổ hiện trường TINPNC</span>
           </button>
 
           <nav
@@ -189,7 +239,7 @@ function AppContent() {
             })}
           </nav>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={() => setDarkMode((v) => !v)}
@@ -197,6 +247,31 @@ function AppContent() {
               className="lg:hidden min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-slate-600 dark:text-slate-300"
             >
               {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => openAuthModal('account')}
+              title={user ? user.displayName || user.email || 'Tài khoản' : 'Đăng nhập'}
+              className={`lg:hidden min-h-[40px] rounded-xl text-xs font-medium flex items-center gap-2 whitespace-nowrap shrink-0 ${
+                user
+                  ? 'pl-1.5 pr-2.5 py-1 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900'
+                  : 'px-3 bg-slate-900 dark:bg-blue-600 text-white'
+              }`}
+            >
+              {user ? (
+                <>
+                  <UserAvatar user={user} size="sm" />
+                  <span className="max-w-[132px] sm:max-w-[240px] truncate">
+                    {user.displayName || user.email || 'Tài khoản'}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <LogIn className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>Đăng nhập</span>
+                </>
+              )}
             </button>
 
             <button
@@ -211,17 +286,48 @@ function AppContent() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-4 sm:pt-6 space-y-5">
+      <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-4 sm:pt-6 space-y-5">
         <div className="hidden lg:flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-          <p>Không gian thu thập dữ liệu hiện trường</p>
-          <button
-            type="button"
-            onClick={() => setDarkMode((v) => !v)}
-            className="inline-flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
-          >
-            {darkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-            <span>{darkMode ? 'Giao diện sáng' : 'Giao diện tối'}</span>
-          </button>
+          {user ? (
+            <button
+              type="button"
+              onClick={() => openAuthModal('account')}
+              className="inline-flex items-center gap-2 text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            >
+              <UserAvatar user={user} size="sm" />
+              <span className="font-medium">
+                {user.displayName || user.email}
+              </span>
+            </button>
+          ) : (
+            <p>
+              Chế độ xem trước — Bạn có thể thao tác đầy đủ, nhưng cần đăng nhập Google để lưu dữ liệu
+            </p>
+          )}
+          <div className="flex items-center gap-5 shrink-0">
+            <button
+              type="button"
+              onClick={() => openAuthModal('account')}
+              className="inline-flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap"
+            >
+              {user ? (
+                <span>Tài khoản</span>
+              ) : (
+                <>
+                  <LogIn className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>Đăng nhập Google</span>
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setDarkMode((v) => !v)}
+              className="inline-flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-slate-100 transition-colors whitespace-nowrap"
+            >
+              {darkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+              <span>{darkMode ? 'Giao diện sáng' : 'Giao diện tối'}</span>
+            </button>
+          </div>
         </div>
 
         {dataError && (
@@ -233,7 +339,7 @@ function AppContent() {
           </div>
         )}
 
-        {dataLoading ? (
+        {!authReady || dataLoading ? (
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center text-sm text-slate-500 dark:text-slate-400">
             Đang đồng bộ dữ liệu...
           </div>
@@ -246,25 +352,25 @@ function AppContent() {
                 onQuickCollect={(catId) => handleQuickCollect(catId)}
                 onFilterCategory={handleFilterCategory}
                 onSelectRecord={setSelectedRecord}
-                onOpenSchema={() => setActiveTab('schema')}
                 onDevelopingCategory={setDevelopingCategory}
               />
             )}
 
             {activeTab === 'collect' && (
               <CollectView
-                uid={WORKSPACE_OWNER_ID}
+                user={user}
                 categories={categories}
                 selectedCategoryId={selectedCategoryId}
                 onSelectCategory={setSelectedCategoryId}
-                onEditCategoryFields={handleEditCategoryFields}
                 onDevelopingCategory={setDevelopingCategory}
+                onRequireAuth={() => openAuthModal('save')}
                 onSaved={() => {}}
               />
             )}
 
             {activeTab === 'records' && (
               <RecordsView
+                user={user}
                 categories={categories}
                 records={records}
                 activeCategoryFilter={recordsCategoryFilter}
@@ -272,31 +378,32 @@ function AppContent() {
                 onSelectRecord={setSelectedRecord}
                 onCreateNew={(catId) => handleQuickCollect(catId)}
                 onDevelopingCategory={setDevelopingCategory}
-              />
-            )}
-
-            {activeTab === 'schema' && (
-              <SchemaView
-                uid={WORKSPACE_OWNER_ID}
-                categories={categories}
-                initialCategoryId={schemaCategoryId}
-                onDevelopingCategory={setDevelopingCategory}
+                onRequireAuth={() => openAuthModal('save')}
               />
             )}
           </>
         )}
       </main>
 
+      <Footer />
+
       <DevelopingModal
         category={developingCategory}
         onClose={() => setDevelopingCategory(null)}
+      />
+
+      <AuthModal
+        open={authModalOpen}
+        user={user}
+        reason={authModalReason}
+        onClose={() => setAuthModalOpen(false)}
       />
 
       <nav
         aria-label="Thanh điều hướng di động"
         className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 pb-safe"
       >
-        <div className="grid grid-cols-4 items-center h-14">
+        <div className="grid grid-cols-3 items-center h-14">
           <button
             type="button"
             onClick={() => setActiveTab('overview')}
@@ -341,27 +448,14 @@ function AppContent() {
               Danh sách
             </span>
           </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('schema')}
-            className={`min-h-[44px] flex flex-col items-center justify-center ${
-              activeTab === 'schema'
-                ? 'text-blue-600 dark:text-blue-400'
-                : 'text-slate-500 dark:text-slate-400'
-            }`}
-          >
-            <SlidersHorizontal className="w-5 h-5" aria-hidden="true" />
-            <span className="text-[11px] font-medium tracking-tight mt-0.5 whitespace-nowrap">
-              Cấu trúc
-            </span>
-          </button>
         </div>
       </nav>
 
       <RecordDetailSheet
+        user={user}
         record={selectedRecord}
         categories={categories}
+        onRequireAuth={() => openAuthModal('save')}
         onClose={() => setSelectedRecord(null)}
       />
     </div>
