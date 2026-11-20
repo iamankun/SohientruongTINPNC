@@ -125,7 +125,7 @@
         "status": {
           "type": "string",
           "enum": ["moi", "dang_xu_ly", "hoan_thanh", "da_luu_tru"],
-          "description": "Workflow state; da_luu_tru is terminal and immutable."
+          "description": "Workflow state; da_luu_tru is terminal for regular users and editable by admins."
         },
         "priority": {
           "type": "string",
@@ -175,6 +175,83 @@
         "createdAt",
         "updatedAt"
       ]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Signed-in user directory profile visible only to the owner and administrators.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the user."
+        },
+        "email": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 160,
+          "description": "Verified email address of the user."
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120,
+          "description": "Display name of the user."
+        },
+        "photoURL": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 500,
+          "description": "Profile avatar URL."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last sign-in sync."
+        }
+      },
+      "required": ["uid", "email", "displayName", "photoURL", "updatedAt"]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Designated administrator account entry keyed by Firebase Auth UID.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the designated administrator."
+        },
+        "email": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 160,
+          "description": "Email address of the administrator if known."
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120,
+          "description": "Display name of the administrator."
+        },
+        "addedByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the admin who granted the role."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when designated."
+        }
+      },
+      "required": ["uid", "email", "displayName", "addedByUid", "createdAt"]
     }
   },
   "firestore": {
@@ -185,6 +262,14 @@
     "/records/{recordId}": {
       "schema": { "$ref": "#/entities/FieldRecord" },
       "description": "User-owned collected field records linked to categories."
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user directory profiles readable only by owner or admins."
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Designated administrator accounts managed by existing admins."
     }
   }
 }

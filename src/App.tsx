@@ -7,8 +7,10 @@ import {
   Moon,
   Plus,
   PlusCircle,
+  Shield,
   Sun,
 } from 'lucide-react';
+import { AdminModal } from './components/AdminModal';
 import { AuthModal } from './components/AuthModal';
 import { BrandLogo } from './components/BrandLogo';
 import { CollectView } from './components/CollectView';
@@ -23,17 +25,28 @@ import { createGuestCategories, sortCategories } from './defaults';
 import { auth } from './firebase';
 import {
   migrateLegacyTempCategories,
+  ROOT_ADMIN_EMAIL,
   seedDefaultCategories,
+  subscribeAdmins,
+  subscribeAdminStatus,
+  subscribeAllRecords,
   subscribeCategories,
   subscribeRecords,
+  subscribeUsers,
+  syncUserProfile,
 } from './services/firestoreService';
-import type { AppTab, Category, FieldRecord } from './types';
+import type { AdminUser, AppTab, Category, FieldRecord, UserProfile } from './types';
 
 function AppContent() {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalReason, setAuthModalReason] = useState<'save' | 'account'>('account');
+
+  const [isDesignatedAdmin, setIsDesignatedAdmin] = useState(false);
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const [admins, setAdmins] = useState<AdminUser[]>([]);
+  const [userDirectory, setUserDirectory] = useState<UserProfile[]>([]);
 
   const [categories, setCategories] = useState<Category[]>(() => createGuestCategories());
   const [records, setRecords] = useState<FieldRecord[]>([]);
@@ -57,6 +70,11 @@ function AppContent() {
   const migratedRef = useRef<string | null>(null);
   const categoriesRef = useRef<Category[]>(categories);
 
+  const isRootAdmin =
+    Boolean(user?.emailVerified) &&
+    user?.email?.toLowerCase() === ROOT_ADMIN_EMAIL;
+  const isAdmin = isRootAdmin || (Boolean(user?.emailVerified) && isDesignatedAdmin);
+
   useEffect(() => {
     categoriesRef.current = categories;
   }, [categories]);
@@ -76,9 +94,25 @@ function AppContent() {
     const unsub = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setAuthReady(true);
+      if (firebaseUser && firebaseUser.emailVerified) {
+        syncUserProfile(firebaseUser).catch(() => {});
+      }
     });
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+    if (!authReady || !user) {
+      setIsDesignatedAdmin(false);
+      return;
+    }
+    const unsubAdminDoc = subscribeAdminStatus(
+      user.uid,
+      (designated) => setIsDesignatedAdmin(designated),
+      () => setIsDesignatedAdmin(false)
+    );
+    return () => unsubAdminDoc();
+  }, [authReady, user?.uid]);
 
   useEffect(() => {
     if (!authReady) return;
@@ -88,7 +122,10 @@ function AppContent() {
       const prevSlug = categoriesRef.current.find((c) => c.id === selectedCategoryId)?.slug;
       setCategories(guestList);
       setRecords([]);
+      setAdmins([]);
+      setUserDirectory([]);
       setSelectedRecord(null);
+      setAdminModalOpen(false);
       setDataLoading(false);
       setDataError('');
       setSelectedCategoryId((prev) => {
@@ -148,21 +185,34 @@ function AppContent() {
       }
     );
 
-    const unsubRecs = subscribeRecords(
-      uid,
-      (list) => {
-        setRecords(list);
-      },
-      () => {
-        setDataError('Không thể tải dữ liệu đã thu thập từ Firestore.');
-      }
-    );
+    const unsubRecs = isAdmin
+      ? subscribeAllRecords(
+          (list) => setRecords(list),
+          () => setDataError('Không thể tải dữ liệu đã thu thập từ Firestore.')
+        )
+      : subscribeRecords(
+          uid,
+          (list) => setRecords(list),
+          () => setDataError('Không thể tải dữ liệu đã thu thập từ Firestore.')
+        );
+
+    let unsubAdmins: (() => void) | undefined;
+    let unsubUsers: (() => void) | undefined;
+    if (isAdmin) {
+      unsubAdmins = subscribeAdmins(setAdmins, () => {});
+      unsubUsers = subscribeUsers(setUserDirectory, () => {});
+    } else {
+      setAdmins([]);
+      setUserDirectory([]);
+    }
 
     return () => {
       unsubCats();
       unsubRecs();
+      unsubAdmins?.();
+      unsubUsers?.();
     };
-  }, [authReady, user?.uid]);
+  }, [authReady, user?.uid, isAdmin]);
 
   useEffect(() => {
     if (selectedRecord) {
@@ -300,6 +350,11 @@ function AppContent() {
               <span className="font-medium">
                 {user.displayName || user.email}
               </span>
+              {isAdmin && (
+                <span className="text-blue-600 dark:text-blue-400 font-medium">
+                  · Quản trị viên
+                </span>
+              )}
             </button>
           ) : (
             <p>
@@ -307,6 +362,16 @@ function AppContent() {
             </p>
           )}
           <div className="flex items-center gap-5 shrink-0">
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setAdminModalOpen(true)}
+                className="inline-flex items-center gap-1.5 font-medium text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap"
+              >
+                <Shield className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>Quản trị viên</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => openAuthModal('account')}
@@ -374,6 +439,8 @@ function AppContent() {
             {activeTab === 'records' && (
               <RecordsView
                 user={user}
+                isAdmin={isAdmin}
+                users={userDirectory}
                 categories={categories}
                 records={records}
                 activeCategoryFilter={recordsCategoryFilter}
@@ -398,9 +465,21 @@ function AppContent() {
       <AuthModal
         open={authModalOpen}
         user={user}
+        isAdmin={isAdmin}
         reason={authModalReason}
         onClose={() => setAuthModalOpen(false)}
+        onOpenAdmin={() => setAdminModalOpen(true)}
       />
+
+      {user && isAdmin && (
+        <AdminModal
+          open={adminModalOpen}
+          currentUser={user}
+          admins={admins}
+          users={userDirectory}
+          onClose={() => setAdminModalOpen(false)}
+        />
+      )}
 
       <nav
         aria-label="Thanh điều hướng di động"
@@ -456,6 +535,7 @@ function AppContent() {
 
       <RecordDetailSheet
         user={user}
+        isAdmin={isAdmin}
         record={selectedRecord}
         categories={categories}
         onRequireAuth={() => openAuthModal('save')}

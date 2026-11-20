@@ -9,6 +9,7 @@ import { CategoryIcon } from './CategoryIcon';
 
 interface RecordDetailSheetProps {
   user: User | null;
+  isAdmin?: boolean;
   record: FieldRecord | null;
   categories: Category[];
   onRequireAuth: () => void;
@@ -20,6 +21,7 @@ const PRIORITIES: RecordPriority[] = ['thap', 'trung_binh', 'cao'];
 
 export function RecordDetailSheet({
   user,
+  isAdmin = false,
   record,
   categories,
   onRequireAuth,
@@ -61,7 +63,8 @@ export function RecordDetailSheet({
 
   const category = categories.find((c) => c.id === record.categoryId);
   const style = COLOR_STYLES[category?.colorKey || 'slate'];
-  const isLocked = record.status === 'da_luu_tru';
+  const isArchived = record.status === 'da_luu_tru';
+  const isLocked = isArchived && !isAdmin;
 
   const handleSaveEdit = async () => {
     if (!user) {
@@ -184,10 +187,14 @@ export function RecordDetailSheet({
             </div>
           )}
 
-          {isLocked && (
+          {isArchived && (
             <div className="bg-slate-100 dark:bg-slate-800/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-700 dark:text-slate-300 flex items-center gap-2">
               <Lock className="w-4 h-4 shrink-0" aria-hidden="true" />
-              <span>Bản ghi đã được chốt lưu trữ và không thể chỉnh sửa nội dung.</span>
+              <span>
+                {isAdmin
+                  ? 'Bản ghi đang ở trạng thái chốt lưu trữ. Quản trị viên có thể chỉnh sửa hoặc chuyển lại trạng thái.'
+                  : 'Bản ghi đã được chốt lưu trữ và không thể chỉnh sửa nội dung.'}
+              </span>
             </div>
           )}
 
@@ -495,14 +502,16 @@ export function RecordDetailSheet({
 
               {!isLocked && (
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setConfirmLock(true)}
-                    className="min-h-[44px] px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium flex items-center gap-1.5"
-                  >
-                    <Lock className="w-4 h-4" aria-hidden="true" />
-                    <span>Chốt</span>
-                  </button>
+                  {!isArchived && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmLock(true)}
+                      className="min-h-[44px] px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium flex items-center gap-1.5"
+                    >
+                      <Lock className="w-4 h-4" aria-hidden="true" />
+                      <span>Chốt</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setEditing(true)}

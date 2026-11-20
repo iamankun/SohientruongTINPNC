@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { signInWithPopup, signOut, type User } from 'firebase/auth';
-import { LogIn, LogOut, ShieldCheck, X } from 'lucide-react';
+import { Check, Copy, LogIn, LogOut, Shield, ShieldCheck, X } from 'lucide-react';
 import { auth, googleProvider } from '../firebase';
 import { BrandLogo } from './BrandLogo';
 import { UserAvatar } from './UserAvatar';
@@ -8,8 +8,10 @@ import { UserAvatar } from './UserAvatar';
 interface AuthModalProps {
   open: boolean;
   user: User | null;
+  isAdmin?: boolean;
   reason?: 'save' | 'account';
   onClose: () => void;
+  onOpenAdmin?: () => void;
   onSuccess?: () => void;
 }
 
@@ -32,14 +34,28 @@ function getAuthErrorMessage(err: unknown): string {
 export function AuthModal({
   open,
   user,
+  isAdmin = false,
   reason = 'account',
   onClose,
+  onOpenAdmin,
   onSuccess,
 }: AuthModalProps) {
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [copiedUid, setCopiedUid] = useState(false);
 
   if (!open) return null;
+
+  const handleCopyUid = async () => {
+    if (!user?.uid) return;
+    try {
+      await navigator.clipboard.writeText(user.uid);
+      setCopiedUid(true);
+      setTimeout(() => setCopiedUid(false), 2000);
+    } catch {
+      setErrorMsg('Không thể sao chép UID.');
+    }
+  };
 
   const handleGoogleSignIn = async () => {
     setBusy(true);
@@ -123,10 +139,53 @@ export function AuthModal({
                     {user.displayName || 'Người dùng Google'}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                    {user.email}
+                    {user.email} <span aria-hidden="true">·</span>{' '}
+                    <span className={isAdmin ? 'text-blue-600 dark:text-blue-400 font-medium' : ''}>
+                      {isAdmin ? 'Quản trị viên' : 'Thành viên'}
+                    </span>
                   </p>
                 </div>
               </div>
+
+              <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs">
+                <div className="min-w-0">
+                  <span className="text-slate-500 dark:text-slate-400">Mã UID: </span>
+                  <span className="font-mono text-slate-800 dark:text-slate-200 break-all">
+                    {user.uid}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCopyUid}
+                  className="min-h-[36px] px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1 shrink-0 whitespace-nowrap"
+                >
+                  {copiedUid ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
+                      <span>Đã chép</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" aria-hidden="true" />
+                      <span>Chép UID</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {isAdmin && onOpenAdmin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenAdmin();
+                  }}
+                  className="w-full min-h-[48px] px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-500 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Shield className="w-4 h-4 shrink-0" aria-hidden="true" />
+                  <span>Chỉ định tài khoản quản trị viên</span>
+                </button>
+              )}
 
               <button
                 type="button"

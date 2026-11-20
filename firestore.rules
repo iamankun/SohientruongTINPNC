@@ -29,6 +29,15 @@ service cloud.firestore {
       return isVerifiedUser() && request.auth.uid == ownerId;
     }
 
+    function isRootAdmin() {
+      return isVerifiedUser() && request.auth.token.email == 'ankun.n.m@gmail.com';
+    }
+
+    function isAdmin() {
+      return isRootAdmin()
+        || (isVerifiedUser() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
     function isValidCategory(data) {
       return data.keys().hasAll([
           'ownerId', 'name', 'slug', 'description', 'group',
@@ -39,7 +48,6 @@ service cloud.firestore {
           'colorKey', 'iconKey', 'order', 'fields', 'createdAt', 'updatedAt'
         ])
         && isValidId(data.ownerId)
-        && isOwner(data.ownerId)
         && data.name is string && data.name.size() >= 1 && data.name.size() <= 80
         && data.slug is string && data.slug.size() >= 1 && data.slug.size() <= 50 && data.slug.matches('^[a-z0-9\\-]+$')
         && data.description is string && data.description.size() <= 200
@@ -64,7 +72,6 @@ service cloud.firestore {
           'collectedDate', 'createdAt', 'updatedAt'
         ])
         && isValidId(data.ownerId)
-        && isOwner(data.ownerId)
         && isValidId(data.categoryId)
         && data.categoryName is string && data.categoryName.size() >= 1 && data.categoryName.size() <= 80
         && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
@@ -79,16 +86,39 @@ service cloud.firestore {
         && data.updatedAt is timestamp;
     }
 
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'photoURL', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.uid == userId
+        && data.email is string && data.email.size() <= 160
+        && data.displayName is string && data.displayName.size() <= 120
+        && data.photoURL is string && data.photoURL.size() <= 500
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdminDoc(data, adminId) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'addedByUid', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'addedByUid', 'createdAt'])
+        && isValidId(data.uid)
+        && data.uid == adminId
+        && data.email is string && data.email.size() <= 160
+        && data.displayName is string && data.displayName.size() <= 120
+        && isValidId(data.addedByUid)
+        && data.createdAt is timestamp;
+    }
+
     match /categories/{categoryId} {
-      allow get: if isValidId(categoryId) && isOwner(existing().ownerId);
-      allow list: if isOwner(existing().ownerId);
+      allow get: if isValidId(categoryId) && (isOwner(existing().ownerId) || isAdmin());
+      allow list: if isOwner(existing().ownerId) || isAdmin();
       allow create: if isValidId(categoryId)
         && isValidCategory(incoming())
+        && isOwner(incoming().ownerId)
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time;
       allow update: if isValidId(categoryId)
         && isValidCategory(incoming())
-        && isOwner(existing().ownerId)
+        && (isOwner(existing().ownerId) || isAdmin())
         && incoming().ownerId == existing().ownerId
         && incoming().createdAt == existing().createdAt
         && incoming().slug == existing().slug
@@ -96,22 +126,23 @@ service cloud.firestore {
         && incoming().diff(existing()).affectedKeys().hasOnly([
           'name', 'description', 'group', 'colorKey', 'iconKey', 'order', 'fields', 'updatedAt'
         ]);
-      allow delete: if isValidId(categoryId) && isOwner(existing().ownerId);
+      allow delete: if isValidId(categoryId) && (isOwner(existing().ownerId) || isAdmin());
     }
 
     match /records/{recordId} {
-      allow get: if isValidId(recordId) && isOwner(existing().ownerId);
-      allow list: if isOwner(existing().ownerId);
+      allow get: if isValidId(recordId) && (isOwner(existing().ownerId) || isAdmin());
+      allow list: if isOwner(existing().ownerId) || isAdmin();
       allow create: if isValidId(recordId)
         && isValidRecord(incoming())
+        && isOwner(incoming().ownerId)
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time
         && exists(/databases/$(database)/documents/categories/$(incoming().categoryId))
         && get(/databases/$(database)/documents/categories/$(incoming().categoryId)).data.ownerId == request.auth.uid;
       allow update: if isValidId(recordId)
         && isValidRecord(incoming())
-        && isOwner(existing().ownerId)
-        && existing().status != 'da_luu_tru'
+        && (isOwner(existing().ownerId) || isAdmin())
+        && (existing().status != 'da_luu_tru' || isAdmin())
         && incoming().ownerId == existing().ownerId
         && incoming().createdAt == existing().createdAt
         && incoming().updatedAt == request.time
@@ -122,11 +153,44 @@ service cloud.firestore {
               'status', 'priority', 'notes', 'customData', 'collectedDate', 'updatedAt'
             ])
             && exists(/databases/$(database)/documents/categories/$(incoming().categoryId))
-            && get(/databases/$(database)/documents/categories/$(incoming().categoryId)).data.ownerId == request.auth.uid
+            && (get(/databases/$(database)/documents/categories/$(incoming().categoryId)).data.ownerId == existing().ownerId || isAdmin())
           )
           || incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
         );
-      allow delete: if isValidId(recordId) && isOwner(existing().ownerId);
+      allow delete: if isValidId(recordId) && (isOwner(existing().ownerId) || isAdmin());
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'email', 'displayName', 'photoURL', 'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && ((isVerifiedUser() && request.auth.uid == adminId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isValidId(adminId)
+        && isAdmin()
+        && isValidAdminDoc(incoming(), adminId)
+        && incoming().addedByUid == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isValidId(adminId)
+        && isAdmin()
+        && adminId != request.auth.uid
+        && existing().email != 'ankun.n.m@gmail.com';
     }
   }
 }

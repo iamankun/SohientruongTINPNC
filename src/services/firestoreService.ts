@@ -16,7 +16,9 @@ import {
   slugifyVietnamese,
 } from '../defaults';
 import { db, handleFirestoreError, OperationType } from '../firebase';
+import type { User } from 'firebase/auth';
 import type {
+  AdminUser,
   Category,
   CategoryColor,
   CategoryGroup,
@@ -25,7 +27,10 @@ import type {
   FieldRecord,
   RecordPriority,
   RecordStatus,
+  UserProfile,
 } from '../types';
+
+export const ROOT_ADMIN_EMAIL = 'ankun.n.m@gmail.com';
 
 function clampString(value: string | undefined | null, maxLength: number): string {
   if (!value) return '';
@@ -122,6 +127,163 @@ export function subscribeRecords(
       }
     }
   );
+}
+
+export function subscribeAllRecords(
+  onData: (records: FieldRecord[]) => void,
+  onError?: (err: Error) => void
+) {
+  return onSnapshot(
+    collection(db, 'records'),
+    (snapshot) => {
+      const list: FieldRecord[] = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<FieldRecord, 'id'>),
+      }));
+      list.sort((a, b) => {
+        const dateCompare = b.collectedDate.localeCompare(a.collectedDate);
+        if (dateCompare !== 0) return dateCompare;
+        const aSec = a.createdAt?.seconds ?? 0;
+        const bSec = b.createdAt?.seconds ?? 0;
+        return bSec - aSec;
+      });
+      onData(list);
+    },
+    (error) => {
+      try {
+        handleFirestoreError(error, OperationType.LIST, 'records');
+      } catch (wrapped) {
+        if (onError && wrapped instanceof Error) {
+          onError(wrapped);
+        }
+      }
+    }
+  );
+}
+
+export async function syncUserProfile(user: User): Promise<void> {
+  const path = `users/${user.uid}`;
+  try {
+    await setDoc(
+      doc(db, 'users', user.uid),
+      {
+        uid: user.uid,
+        email: clampString(user.email, 160),
+        displayName: clampString(user.displayName, 120),
+        photoURL: clampString(user.photoURL, 500),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export function subscribeAdminStatus(
+  uid: string,
+  onData: (isDesignated: boolean) => void,
+  onError?: (err: Error) => void
+) {
+  const path = `admins/${uid}`;
+  return onSnapshot(
+    doc(db, 'admins', uid),
+    (snapshot) => {
+      onData(snapshot.exists());
+    },
+    (error) => {
+      try {
+        handleFirestoreError(error, OperationType.GET, path);
+      } catch (wrapped) {
+        if (onError && wrapped instanceof Error) {
+          onError(wrapped);
+        }
+      }
+    }
+  );
+}
+
+export function subscribeAdmins(
+  onData: (admins: AdminUser[]) => void,
+  onError?: (err: Error) => void
+) {
+  return onSnapshot(
+    collection(db, 'admins'),
+    (snapshot) => {
+      const list: AdminUser[] = snapshot.docs.map((d) => ({
+        ...(d.data() as AdminUser),
+        uid: d.id,
+      }));
+      onData(list);
+    },
+    (error) => {
+      try {
+        handleFirestoreError(error, OperationType.LIST, 'admins');
+      } catch (wrapped) {
+        if (onError && wrapped instanceof Error) {
+          onError(wrapped);
+        }
+      }
+    }
+  );
+}
+
+export function subscribeUsers(
+  onData: (users: UserProfile[]) => void,
+  onError?: (err: Error) => void
+) {
+  return onSnapshot(
+    collection(db, 'users'),
+    (snapshot) => {
+      const list: UserProfile[] = snapshot.docs.map((d) => ({
+        ...(d.data() as UserProfile),
+        uid: d.id,
+      }));
+      list.sort((a, b) => (a.displayName || a.email).localeCompare(b.displayName || b.email, 'vi'));
+      onData(list);
+    },
+    (error) => {
+      try {
+        handleFirestoreError(error, OperationType.LIST, 'users');
+      } catch (wrapped) {
+        if (onError && wrapped instanceof Error) {
+          onError(wrapped);
+        }
+      }
+    }
+  );
+}
+
+export async function designateAdmin(
+  target: { uid: string; email?: string; displayName?: string },
+  addedByUid: string
+): Promise<void> {
+  const cleanUid = clampString(target.uid, 128);
+  if (!/^[a-zA-Z0-9_-]+$/.test(cleanUid)) {
+    throw new Error('Mã UID không hợp lệ (chỉ gồm chữ, số, _ và -).');
+  }
+  const path = `admins/${cleanUid}`;
+  try {
+    await setDoc(doc(db, 'admins', cleanUid), {
+      uid: cleanUid,
+      email: clampString(target.email, 160),
+      displayName: clampString(target.displayName, 120),
+      addedByUid: clampString(addedByUid, 128),
+      createdAt: serverTimestamp(),
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, path);
+  }
+}
+
+export async function revokeAdmin(targetUid: string): Promise<void> {
+  const cleanUid = clampString(targetUid, 128);
+  const path = `admins/${cleanUid}`;
+  try {
+    await deleteDoc(doc(db, 'admins', cleanUid));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
 }
 
 export async function seedDefaultCategories(uid: string): Promise<void> {

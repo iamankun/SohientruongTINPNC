@@ -3,11 +3,13 @@ import type { User } from 'firebase/auth';
 import { Download, LogIn, Plus, Search } from 'lucide-react';
 import { MAINTENANCE_FIELD_LABELS } from '../data/maintenanceScript';
 import { COLOR_STYLES, formatDateVn, PRIORITY_LABELS, STATUS_LABELS } from '../defaults';
-import type { Category, FieldRecord, RecordStatus } from '../types';
+import type { Category, FieldRecord, RecordStatus, UserProfile } from '../types';
 import { CategoryIcon } from './CategoryIcon';
 
 interface RecordsViewProps {
   user: User | null;
+  isAdmin?: boolean;
+  users?: UserProfile[];
   categories: Category[];
   records: FieldRecord[];
   activeCategoryFilter: string;
@@ -28,6 +30,8 @@ const STATUS_FILTER_OPTIONS: Array<{ value: 'all' | RecordStatus; label: string 
 
 export function RecordsView({
   user,
+  isAdmin = false,
+  users = [],
   categories,
   records,
   activeCategoryFilter,
@@ -39,15 +43,24 @@ export function RecordsView({
 }: RecordsViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | RecordStatus>('all');
+  const [ownerScope, setOwnerScope] = useState<'all' | 'mine'>('all');
 
   const categoryMap = useMemo(
     () => new Map(categories.map((c) => [c.id, c])),
     [categories]
   );
 
+  const userMap = useMemo(
+    () => new Map(users.map((u) => [u.uid, u])),
+    [users]
+  );
+
   const filteredRecords = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
     return records.filter((rec) => {
+      if (isAdmin && ownerScope === 'mine' && user && rec.ownerId !== user.uid) {
+        return false;
+      }
       if (activeCategoryFilter !== 'all' && rec.categoryId !== activeCategoryFilter) {
         return false;
       }
@@ -59,16 +72,18 @@ export function RecordsView({
         .map((v) => String(v))
         .join(' ')
         .toLowerCase();
+      const ownerText = (userMap.get(rec.ownerId)?.displayName || userMap.get(rec.ownerId)?.email || '').toLowerCase();
       return (
         rec.title.toLowerCase().includes(q) ||
         rec.location.toLowerCase().includes(q) ||
         rec.contactName.toLowerCase().includes(q) ||
         rec.notes.toLowerCase().includes(q) ||
         rec.categoryName.toLowerCase().includes(q) ||
+        ownerText.includes(q) ||
         customText.includes(q)
       );
     });
-  }, [records, activeCategoryFilter, statusFilter, searchTerm]);
+  }, [records, isAdmin, ownerScope, user, activeCategoryFilter, statusFilter, searchTerm, userMap]);
 
   const handleExportCsv = () => {
     const escapeCsv = (val: string) => {
@@ -223,8 +238,34 @@ export function RecordsView({
         </div>
       </div>
 
-      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400 tabular-nums">
         <span>Hiển thị {filteredRecords.length} bản ghi</span>
+        {isAdmin && user && (
+          <div className="flex items-center gap-1 p-0.5 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={() => setOwnerScope('all')}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+                ownerScope === 'all'
+                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              Tất cả nhân viên
+            </button>
+            <button
+              type="button"
+              onClick={() => setOwnerScope('mine')}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+                ownerScope === 'mine'
+                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              Phiếu của tôi
+            </button>
+          </div>
+        )}
       </div>
 
       {!user ? (
@@ -281,6 +322,12 @@ export function RecordsView({
                       {cat?.name || rec.categoryName}
                       <span aria-hidden="true"> · </span>
                       {formatDateVn(rec.collectedDate)}
+                      {isAdmin && userMap.get(rec.ownerId) ? (
+                        <>
+                          <span aria-hidden="true"> · </span>
+                          {userMap.get(rec.ownerId)?.displayName || userMap.get(rec.ownerId)?.email}
+                        </>
+                      ) : null}
                       {rec.location ? (
                         <>
                           <span aria-hidden="true"> · </span>

@@ -50,4 +50,21 @@ export interface FieldRecord {
   updatedAt?: Timestamp | null;
 }
 
+export interface UserProfile {
+  uid: string;
+  email: string;
+  displayName: string;
+  photoURL: string;
+  updatedAt?: Timestamp | null;
+}
+
+export interface AdminUser {
+  uid: string;
+  email: string;
+  displayName: string;
+  addedByUid: string;
+  createdAt?: Timestamp | null;
+}
+
 export type AppTab = 'overview' | 'collect' | 'records';
+
