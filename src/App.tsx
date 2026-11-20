@@ -10,6 +10,7 @@ import {
   Sun,
 } from 'lucide-react';
 import { AuthModal } from './components/AuthModal';
+import { BrandLogo } from './components/BrandLogo';
 import { CollectView } from './components/CollectView';
 import { DevelopingModal } from './components/DevelopingModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -210,9 +211,10 @@ function AppContent() {
           <button
             type="button"
             onClick={() => setActiveTab('overview')}
-            className="min-w-0 text-base lg:text-lg font-display font-bold tracking-tight text-slate-900 dark:text-slate-100 whitespace-nowrap lg:shrink-0 text-left truncate"
+            className="min-w-0 flex items-center gap-2.5 text-base lg:text-lg font-display font-bold tracking-tight text-slate-900 dark:text-slate-100 whitespace-nowrap lg:shrink-0 text-left"
           >
-            <span className="lg:hidden">{mobileTitleMap[activeTab]}</span>
+            <BrandLogo size="sm" />
+            <span className="lg:hidden truncate">{mobileTitleMap[activeTab]}</span>
             <span className="hidden lg:inline">Sổ hiện trường TINPNC</span>
           </button>
 
@@ -340,8 +342,9 @@ function AppContent() {
         )}
 
         {!authReady || dataLoading ? (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center text-sm text-slate-500 dark:text-slate-400">
-            Đang đồng bộ dữ liệu...
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 flex flex-col items-center gap-3 text-center text-sm text-slate-500 dark:text-slate-400">
+            <BrandLogo size="lg" />
+            <span>Đang đồng bộ dữ liệu...</span>
           </div>
         ) : (
           <>

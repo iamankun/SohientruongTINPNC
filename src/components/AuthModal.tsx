@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { signInWithPopup, signOut, type User } from 'firebase/auth';
 import { LogIn, LogOut, ShieldCheck, X } from 'lucide-react';
 import { auth, googleProvider } from '../firebase';
+import { BrandLogo } from './BrandLogo';
 import { UserAvatar } from './UserAvatar';
 
 interface AuthModalProps {
@@ -80,16 +81,19 @@ export function AuthModal({
         </div>
 
         <div className="px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
-          <h2
-            id="auth-modal-title"
-            className="text-base font-display font-semibold text-slate-900 dark:text-slate-100"
-          >
-            {user
-              ? 'Tài khoản của bạn'
-              : reason === 'save'
-                ? 'Đăng nhập để lưu dữ liệu'
-                : 'Đăng nhập Google'}
-          </h2>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <BrandLogo size="xs" />
+            <h2
+              id="auth-modal-title"
+              className="text-base font-display font-semibold text-slate-900 dark:text-slate-100 truncate"
+            >
+              {user
+                ? 'Tài khoản của bạn'
+                : reason === 'save'
+                  ? 'Đăng nhập để lưu dữ liệu'
+                  : 'Đăng nhập Google'}
+            </h2>
+          </div>
           <button
             type="button"
             onClick={onClose}

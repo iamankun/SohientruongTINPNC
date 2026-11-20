@@ -16,6 +16,7 @@ import {
 import { getTodayIsoDate } from '../defaults';
 import { createRecord } from '../services/firestoreService';
 import type { Category } from '../types';
+import { BrandLogo } from './BrandLogo';
 
 type BotStepId =
   | 's1_cls'
@@ -562,13 +563,16 @@ export function MaintenanceBotView({
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden flex flex-col min-h-[540px] max-h-[75vh] sm:max-h-[680px]">
       <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 bg-slate-50/70 dark:bg-slate-950/60">
-        <div className="min-w-0">
-          <p className="text-sm font-display font-semibold text-slate-900 dark:text-slate-100 truncate">
-            Trợ lý Bảo Trì
-          </p>
-          <p className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
-            Bước {currentStepNum}/12
-          </p>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <BrandLogo size="sm" />
+          <div className="min-w-0">
+            <p className="text-sm font-display font-semibold text-slate-900 dark:text-slate-100 truncate">
+              Trợ lý Bảo Trì
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+              Bước {currentStepNum}/12
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <button

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { BrandLogo } from './BrandLogo';
 
 const ANKUN_LOGO_URL =
   'https://www.ankun.asia/_next/image?url=%2Flogo-white.png&w=96&q=75';
@@ -13,6 +14,7 @@ export function Footer() {
     <footer className="mt-10 bg-slate-900 text-slate-300 border-t border-slate-800 pt-6 pb-24 lg:pb-7">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-xs sm:text-sm">
         <div className="flex flex-wrap items-center gap-2.5">
+          <BrandLogo size="xs" variant="dark" />
           <span className="text-slate-300">Sổ hiện trường TINPNC được lập trình bởi</span>
           <a
             href="https://ankun.asia"
