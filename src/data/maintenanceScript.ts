@@ -169,5 +169,8 @@ export const MAINTENANCE_FIELD_LABELS: Record<string, string> = {
   can_trang_bi_md_ap: '9. KH cần trang bị MD/AP',
   dong_y_mua_md_ap: '10. KH đồng ý mua thêm MD/AP',
   ktv_lap_ap_se: '11. KTV chủ động lắp AP SE',
-  toa_do: '12. Vị trí tọa độ',
+  toa_do: 'Tọa độ GPS',
+  vi_do: 'Vĩ độ (Latitude)',
+  kinh_do: 'Kinh độ (Longitude)',
+  sai_so_m: 'Sai số định vị (mét)',
 };

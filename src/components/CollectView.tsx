@@ -5,6 +5,7 @@ import { COLOR_STYLES, getTodayIsoDate, PRIORITY_LABELS, STATUS_LABELS } from '.
 import { createRecord } from '../services/firestoreService';
 import type { Category, RecordPriority, RecordStatus } from '../types';
 import { CategoryIcon } from './CategoryIcon';
+import { LocationMapView } from './LocationMapView';
 import { MaintenanceBotView } from './MaintenanceBotView';
 
 interface CollectViewProps {
@@ -192,6 +193,13 @@ export function CollectView({
 
       {activeCategory.slug === 'bao-tri' ? (
         <MaintenanceBotView
+          user={user}
+          category={activeCategory}
+          onRequireAuth={onRequireAuth}
+          onSaved={onSaved}
+        />
+      ) : activeCategory.slug === 'hang-muc-3' ? (
+        <LocationMapView
           user={user}
           category={activeCategory}
           onRequireAuth={onRequireAuth}

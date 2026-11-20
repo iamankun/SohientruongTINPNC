@@ -319,11 +319,30 @@ export async function migrateLegacyTempCategories(
   currentCategories: Category[]
 ): Promise<boolean> {
   const legacyDocs = currentCategories.filter((c) => LEGACY_TEMP_SLUGS.includes(c.slug));
-  if (legacyDocs.length === 0) return false;
+  const mapTemplate = DEFAULT_CATEGORY_TEMPLATES.find((t) => t.slug === 'hang-muc-3');
+  const existingCat3 = currentCategories.find((c) => c.slug === 'hang-muc-3');
+  const needsCat3Upgrade = Boolean(
+    mapTemplate && existingCat3 && existingCat3.group === 'temporary'
+  );
+
+  if (legacyDocs.length === 0 && !needsCat3Upgrade) return false;
 
   const batch = writeBatch(db);
   for (const legacy of legacyDocs) {
     batch.delete(doc(db, 'categories', legacy.id));
+  }
+
+  if (needsCat3Upgrade && existingCat3 && mapTemplate) {
+    batch.update(doc(db, 'categories', existingCat3.id), {
+      name: mapTemplate.name,
+      description: mapTemplate.description,
+      group: mapTemplate.group,
+      colorKey: mapTemplate.colorKey,
+      iconKey: mapTemplate.iconKey,
+      order: mapTemplate.order,
+      fields: sanitizeFields(mapTemplate.fields),
+      updatedAt: serverTimestamp(),
+    });
   }
 
   const newTemplates = DEFAULT_CATEGORY_TEMPLATES.filter((t) => t.group === 'temporary');

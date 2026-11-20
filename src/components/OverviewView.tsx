@@ -97,7 +97,11 @@ export function OverviewView({
                     </h3>
                     <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 tabular-nums">
                       {total} bản ghi <span aria-hidden="true">·</span>{' '}
-                      {cat.slug === 'bao-tri' ? '12 bước BOT' : `${cat.fields.length} trường dữ liệu`}
+                      {cat.slug === 'bao-tri'
+                        ? '12 bước BOT'
+                        : cat.slug === 'hang-muc-3'
+                          ? 'Bản đồ & GPS'
+                          : `${cat.fields.length} trường dữ liệu`}
                     </p>
                     <p className="mt-2 text-sm text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
                       {cat.slug === 'bao-tri'
@@ -114,7 +118,13 @@ export function OverviewView({
                     className="flex-1 min-h-[44px] px-4 py-2 rounded-xl bg-slate-900 dark:bg-blue-600 text-white text-sm font-medium flex items-center justify-center gap-2 hover:bg-slate-800 dark:hover:bg-blue-500 active:scale-[0.99] transition-all whitespace-nowrap"
                   >
                     <Plus className="w-4 h-4 shrink-0" aria-hidden="true" />
-                    <span>{cat.slug === 'bao-tri' ? 'Mở BOT Bảo Trì' : 'Ghi nhận mới'}</span>
+                    <span>
+                      {cat.slug === 'bao-tri'
+                        ? 'Mở BOT Bảo Trì'
+                        : cat.slug === 'hang-muc-3'
+                          ? 'Mở bản đồ vị trí'
+                          : 'Ghi nhận mới'}
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -139,7 +149,7 @@ export function OverviewView({
             Hạng mục mở rộng
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            4 mục tạm thời đang trong giai đoạn phát triển
+            {tempCategories.length} mục tạm thời đang trong giai đoạn phát triển
           </p>
         </div>
 
