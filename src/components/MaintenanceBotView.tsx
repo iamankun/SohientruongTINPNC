@@ -127,7 +127,7 @@ function getPromptForStep(step: BotStepId, answers: MaintenanceAnswers): string 
     case 's1_cls':
       return '1. Số CLs trong 6 tháng gần nhất của khách hàng là bao nhiêu?';
     case 's2a_phone':
-      return '2. Nhập số điện thoại liên hệ của khách hàng (nếu nhập +84... sẽ tự chuyển về 0...):';
+      return '2. Nhập số điện thoại liên hệ của khách hàng:';
     case 's2b_name':
       return '2. Tên khách hàng là gì?';
     case 's3a_house':
@@ -915,7 +915,11 @@ export function MaintenanceBotView({
                 disabled={botTyping}
                 value={optionSearch}
                 onChange={(e) => setOptionSearch(e.target.value)}
-                placeholder="Tìm nhanh mã thiết bị hoặc lỗi..."
+                placeholder={
+                  step === 's6b_fault_detail'
+                    ? 'Tìm nhanh lỗi'
+                    : 'Tìm nhanh thiết bị'
+                }
                 className="w-full min-h-[40px] px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-base text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
               />
             )}
@@ -995,9 +999,9 @@ export function MaintenanceBotView({
                   }}
                   placeholder={
                     step === 's1_cls'
-                      ? 'Hoặc nhập số khác (vd: 6, 7)...'
+                      ? 'Nhập số CLs'
                       : step === 's2a_phone'
-                        ? 'Nhập SĐT (vd: 0354717557 hoặc +84354717557)...'
+                        ? 'Nhập SDT đã liên hệ'
                         : step === 's2b_name'
                           ? 'Nhập tên khách hàng...'
                           : step === 's12_location'

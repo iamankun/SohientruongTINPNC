@@ -528,29 +528,32 @@ function AppContent() {
         aria-label="Thanh điều hướng di động"
         className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 pb-safe"
       >
-        <div className="grid grid-cols-3 items-center h-14">
+        <div className="grid grid-cols-3 items-stretch h-14">
           <button
             type="button"
             onClick={() => switchTab('overview')}
-            className={`relative min-h-[44px] flex flex-col items-center justify-center btn-press ${
+            className={`h-full min-h-[44px] flex flex-col items-center justify-center gap-0.5 btn-press ${
               activeTab === 'overview'
                 ? 'text-blue-600 dark:text-blue-400'
                 : 'text-slate-500 dark:text-slate-400'
             }`}
           >
             <span
-              aria-hidden="true"
-              className={`absolute top-0 w-8 h-0.5 rounded-full bg-blue-600 dark:bg-blue-400 transition-all duration-250 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                activeTab === 'overview' ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0'
+              className={`w-12 h-7 rounded-full flex items-center justify-center transition-colors duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                activeTab === 'overview'
+                  ? 'bg-blue-50 dark:bg-blue-500/15'
+                  : 'bg-transparent'
               }`}
-            />
-            <Home
-              className={`w-5 h-5 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                activeTab === 'overview' ? '-translate-y-0.5 scale-105' : ''
-              }`}
-              aria-hidden="true"
-            />
-            <span className="text-[11px] font-medium tracking-tight mt-0.5 whitespace-nowrap">
+            >
+              <Home
+                className={`w-[18px] h-[18px] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                  activeTab === 'overview' ? 'scale-105' : ''
+                }`}
+                strokeWidth={activeTab === 'overview' ? 2.2 : 1.8}
+                aria-hidden="true"
+              />
+            </span>
+            <span className="text-[11px] font-medium tracking-tight leading-none whitespace-nowrap">
               Tổng quan
             </span>
           </button>
@@ -558,25 +561,28 @@ function AppContent() {
           <button
             type="button"
             onClick={() => switchTab('collect')}
-            className={`relative min-h-[44px] flex flex-col items-center justify-center btn-press ${
+            className={`h-full min-h-[44px] flex flex-col items-center justify-center gap-0.5 btn-press ${
               activeTab === 'collect'
                 ? 'text-blue-600 dark:text-blue-400'
                 : 'text-slate-500 dark:text-slate-400'
             }`}
           >
             <span
-              aria-hidden="true"
-              className={`absolute top-0 w-8 h-0.5 rounded-full bg-blue-600 dark:bg-blue-400 transition-all duration-250 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                activeTab === 'collect' ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0'
+              className={`w-12 h-7 rounded-full flex items-center justify-center transition-colors duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                activeTab === 'collect'
+                  ? 'bg-blue-50 dark:bg-blue-500/15'
+                  : 'bg-transparent'
               }`}
-            />
-            <PlusCircle
-              className={`w-5 h-5 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                activeTab === 'collect' ? '-translate-y-0.5 scale-105' : ''
-              }`}
-              aria-hidden="true"
-            />
-            <span className="text-[11px] font-medium tracking-tight mt-0.5 whitespace-nowrap">
+            >
+              <PlusCircle
+                className={`w-[18px] h-[18px] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                  activeTab === 'collect' ? 'scale-105' : ''
+                }`}
+                strokeWidth={activeTab === 'collect' ? 2.2 : 1.8}
+                aria-hidden="true"
+              />
+            </span>
+            <span className="text-[11px] font-medium tracking-tight leading-none whitespace-nowrap">
               Thu thập
             </span>
           </button>
@@ -584,25 +590,28 @@ function AppContent() {
           <button
             type="button"
             onClick={() => switchTab('records')}
-            className={`relative min-h-[44px] flex flex-col items-center justify-center btn-press ${
+            className={`h-full min-h-[44px] flex flex-col items-center justify-center gap-0.5 btn-press ${
               activeTab === 'records'
                 ? 'text-blue-600 dark:text-blue-400'
                 : 'text-slate-500 dark:text-slate-400'
             }`}
           >
             <span
-              aria-hidden="true"
-              className={`absolute top-0 w-8 h-0.5 rounded-full bg-blue-600 dark:bg-blue-400 transition-all duration-250 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                activeTab === 'records' ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0'
+              className={`w-12 h-7 rounded-full flex items-center justify-center transition-colors duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                activeTab === 'records'
+                  ? 'bg-blue-50 dark:bg-blue-500/15'
+                  : 'bg-transparent'
               }`}
-            />
-            <ClipboardList
-              className={`w-5 h-5 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                activeTab === 'records' ? '-translate-y-0.5 scale-105' : ''
-              }`}
-              aria-hidden="true"
-            />
-            <span className="text-[11px] font-medium tracking-tight mt-0.5 whitespace-nowrap">
+            >
+              <ClipboardList
+                className={`w-[18px] h-[18px] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                  activeTab === 'records' ? 'scale-105' : ''
+                }`}
+                strokeWidth={activeTab === 'records' ? 2.2 : 1.8}
+                aria-hidden="true"
+              />
+            </span>
+            <span className="text-[11px] font-medium tracking-tight leading-none whitespace-nowrap">
               Danh sách
             </span>
           </button>
