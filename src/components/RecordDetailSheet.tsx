@@ -135,13 +135,13 @@ export function RecordDetailSheet({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm animate-backdrop-enter"
       role="dialog"
       aria-modal="true"
       aria-labelledby="sheet-record-title"
     >
       <div
-        className="w-full sm:max-w-xl bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl border-t sm:border border-slate-200 dark:border-slate-800 max-h-[90vh] flex flex-col overflow-hidden"
+        className="w-full sm:max-w-xl bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl border-t sm:border border-slate-200 dark:border-slate-800 max-h-[90vh] flex flex-col overflow-hidden animate-sheet-enter"
       >
         <div className="sm:hidden pt-2.5 pb-1">
           <div className="w-10 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto" />
@@ -171,9 +171,9 @@ export function RecordDetailSheet({
             type="button"
             onClick={onClose}
             aria-label="Đóng"
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0"
+            className="group min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 btn-press shrink-0"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-90" />
           </button>
         </div>
 
@@ -199,7 +199,7 @@ export function RecordDetailSheet({
           )}
 
           {editing && !isLocked ? (
-            <div className="space-y-4">
+            <div key="edit-mode" className="space-y-4 animate-item-enter">
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
                   Tiêu đề
@@ -321,7 +321,7 @@ export function RecordDetailSheet({
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div key="view-mode" className="space-y-4 animate-item-enter">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-xs text-slate-500 dark:text-slate-400">Trạng thái</p>
@@ -405,7 +405,7 @@ export function RecordDetailSheet({
                         type="button"
                         disabled={busy}
                         onClick={() => handleQuickStatus(st)}
-                        className={`min-h-[44px] px-2 py-2 rounded-xl text-xs font-medium border transition-colors ${
+                        className={`min-h-[44px] px-2 py-2 rounded-xl text-xs font-medium border btn-press ${
                           record.status === st
                             ? 'bg-blue-600 text-white border-blue-600'
                             : 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800'
@@ -423,12 +423,12 @@ export function RecordDetailSheet({
 
         <div className="px-5 py-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 pb-safe">
           {editing ? (
-            <div className="flex items-center gap-2.5">
+            <div key="footer-edit" className="flex items-center gap-2.5 animate-item-enter">
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => setEditing(false)}
-                className="flex-1 min-h-[44px] px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-200"
+                className="flex-1 min-h-[44px] px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-200 btn-press"
               >
                 Hủy
               </button>
@@ -436,13 +436,13 @@ export function RecordDetailSheet({
                 type="button"
                 disabled={busy}
                 onClick={handleSaveEdit}
-                className="flex-1 min-h-[44px] px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+                className="flex-1 min-h-[44px] px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 btn-primary"
               >
                 {busy ? 'Đang lưu...' : 'Lưu thay đổi'}
               </button>
             </div>
           ) : confirmDelete ? (
-            <div className="flex items-center justify-between gap-2.5">
+            <div key="footer-delete" className="flex items-center justify-between gap-2.5 animate-item-enter">
               <span className="text-xs font-medium text-rose-700 dark:text-rose-400">
                 Xác nhận xóa bản ghi này?
               </span>
@@ -451,7 +451,7 @@ export function RecordDetailSheet({
                   type="button"
                   disabled={busy}
                   onClick={() => setConfirmDelete(false)}
-                  className="min-h-[44px] px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-medium"
+                  className="min-h-[44px] px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-medium btn-press"
                 >
                   Hủy
                 </button>
@@ -459,14 +459,14 @@ export function RecordDetailSheet({
                   type="button"
                   disabled={busy}
                   onClick={handleDelete}
-                  className="min-h-[44px] px-3.5 py-2 rounded-xl bg-rose-600 text-white text-xs font-medium"
+                  className="min-h-[44px] px-3.5 py-2 rounded-xl bg-rose-600 text-white text-xs font-medium btn-primary"
                 >
                   Xóa ngay
                 </button>
               </div>
             </div>
           ) : confirmLock ? (
-            <div className="flex items-center justify-between gap-2.5">
+            <div key="footer-lock" className="flex items-center justify-between gap-2.5 animate-item-enter">
               <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
                 Chốt lưu trữ sẽ khóa chỉnh sửa. Tiếp tục?
               </span>
@@ -475,7 +475,7 @@ export function RecordDetailSheet({
                   type="button"
                   disabled={busy}
                   onClick={() => setConfirmLock(false)}
-                  className="min-h-[44px] px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-medium"
+                  className="min-h-[44px] px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-medium btn-press"
                 >
                   Hủy
                 </button>
@@ -483,18 +483,18 @@ export function RecordDetailSheet({
                   type="button"
                   disabled={busy}
                   onClick={() => handleQuickStatus('da_luu_tru')}
-                  className="min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-900 dark:bg-blue-600 text-white text-xs font-medium"
+                  className="min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-900 dark:bg-blue-600 text-white text-xs font-medium btn-primary"
                 >
                   Chốt lưu trữ
                 </button>
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-between gap-2">
+            <div key="footer-default" className="flex items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={() => setConfirmDelete(true)}
-                className="min-h-[44px] px-3.5 py-2 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-sm font-medium flex items-center gap-1.5"
+                className="min-h-[44px] px-3.5 py-2 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-sm font-medium flex items-center gap-1.5 btn-press"
               >
                 <Trash2 className="w-4 h-4" aria-hidden="true" />
                 <span>Xóa</span>
@@ -506,7 +506,7 @@ export function RecordDetailSheet({
                     <button
                       type="button"
                       onClick={() => setConfirmLock(true)}
-                      className="min-h-[44px] px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium flex items-center gap-1.5"
+                      className="min-h-[44px] px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium flex items-center gap-1.5 btn-press"
                     >
                       <Lock className="w-4 h-4" aria-hidden="true" />
                       <span>Chốt</span>
@@ -515,7 +515,7 @@ export function RecordDetailSheet({
                   <button
                     type="button"
                     onClick={() => setEditing(true)}
-                    className="min-h-[44px] px-4 py-2 rounded-xl bg-slate-900 dark:bg-blue-600 text-white text-sm font-medium flex items-center gap-1.5"
+                    className="min-h-[44px] px-4 py-2 rounded-xl bg-slate-900 dark:bg-blue-600 text-white text-sm font-medium flex items-center gap-1.5 btn-primary"
                   >
                     <Pencil className="w-4 h-4" aria-hidden="true" />
                     <span>Sửa</span>

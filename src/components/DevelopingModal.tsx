@@ -11,14 +11,14 @@ export function DevelopingModal({ category, onClose }: DevelopingModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm animate-backdrop-enter"
       role="dialog"
       aria-modal="true"
       aria-labelledby="developing-modal-title"
       onClick={onClose}
     >
       <div
-        className="w-full sm:max-w-md bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl border-t sm:border border-slate-200 dark:border-slate-800 p-5 sm:p-6 space-y-5 pb-safe"
+        className="w-full sm:max-w-md bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl border-t sm:border border-slate-200 dark:border-slate-800 p-5 sm:p-6 space-y-5 pb-safe animate-sheet-enter"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sm:hidden">
@@ -47,9 +47,9 @@ export function DevelopingModal({ category, onClose }: DevelopingModalProps) {
             type="button"
             onClick={onClose}
             aria-label="Đóng thông báo"
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0"
+            className="group min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 btn-press shrink-0"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-90" />
           </button>
         </div>
 
@@ -60,7 +60,7 @@ export function DevelopingModal({ category, onClose }: DevelopingModalProps) {
         <button
           type="button"
           onClick={onClose}
-          className="w-full min-h-[48px] px-5 py-3 rounded-xl bg-slate-900 dark:bg-blue-600 text-white text-sm font-semibold hover:bg-slate-800 dark:hover:bg-blue-500 active:scale-[0.99] transition-all"
+          className="w-full min-h-[48px] px-5 py-3 rounded-xl bg-slate-900 dark:bg-blue-600 text-white text-sm font-semibold hover:bg-slate-800 dark:hover:bg-blue-500 btn-primary"
         >
           Đã hiểu
         </button>

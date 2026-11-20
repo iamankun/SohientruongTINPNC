@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import type { User } from 'firebase/auth';
 import { Check, Copy, LogIn, MapPin, RotateCcw, Send, Undo2 } from 'lucide-react';
 import {
@@ -68,6 +68,7 @@ interface ChatMessage {
   id: string;
   sender: 'bot' | 'user';
   text: string;
+  stream?: boolean;
 }
 
 interface HistorySnapshot {
@@ -173,11 +174,82 @@ function getPromptForStep(step: BotStepId, answers: MaintenanceAnswers): string 
 function createInitialMessages(): ChatMessage[] {
   return [
     {
-      id: 'init-1',
+      id: `init-${Date.now()}`,
       sender: 'bot',
       text: getPromptForStep('s1_cls', {}),
+      stream: true,
     },
   ];
+}
+
+interface StreamingBotTextProps {
+  text: string;
+  animate: boolean;
+  onComplete?: () => void;
+}
+
+function StreamingBotText({ text, animate, onComplete }: StreamingBotTextProps) {
+  const parts = useMemo(
+    () => Array.from(text.matchAll(/(\S+)(\s*)/g), (m) => ({ word: m[1], space: m[2] })),
+    [text]
+  );
+  const [visibleCount, setVisibleCount] = useState<number>(() =>
+    animate ? Math.min(1, parts.length) : parts.length
+  );
+  const onCompleteRef = useRef(onComplete);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  useEffect(() => {
+    if (!animate) {
+      setVisibleCount(parts.length);
+      return;
+    }
+    setVisibleCount(Math.min(1, parts.length));
+    if (parts.length <= 1) {
+      onCompleteRef.current?.();
+      return;
+    }
+
+    const durationMs = Math.min(480, Math.max(240, parts.length * 28));
+    const start = performance.now();
+    let rafId = 0;
+
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - start) / durationMs);
+      const nextCount = Math.max(1, Math.ceil(progress * parts.length));
+      setVisibleCount((prev) => (prev === nextCount ? prev : nextCount));
+      if (progress < 1) {
+        rafId = window.requestAnimationFrame(tick);
+      } else {
+        onCompleteRef.current?.();
+      }
+    };
+
+    rafId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(rafId);
+  }, [animate, parts.length]);
+
+  if (parts.length === 0) {
+    return <>{text}</>;
+  }
+
+  const shown = animate ? parts.slice(0, visibleCount) : parts;
+
+  return (
+    <>
+      {shown.map((part, idx) => (
+        <Fragment key={idx}>
+          <span className={animate ? 'inline-block max-w-full break-words animate-gemini-word' : undefined}>
+            {part.word}
+          </span>
+          {part.space}
+        </Fragment>
+      ))}
+    </>
+  );
 }
 
 export function MaintenanceBotView({
@@ -193,6 +265,10 @@ export function MaintenanceBotView({
 
   const [textInput, setTextInput] = useState('');
   const [optionSearch, setOptionSearch] = useState('');
+  const [botTyping, setBotTyping] = useState(false);
+  const [streamingMsgId, setStreamingMsgId] = useState<string | null>(
+    () => messages[0]?.id ?? null
+  );
   const [locating, setLocating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -200,10 +276,29 @@ export function MaintenanceBotView({
   const [errorMsg, setErrorMsg] = useState('');
 
   const scrollEndRef = useRef<HTMLDivElement | null>(null);
+  const replyTimerRef = useRef<number | null>(null);
+  const extraNoteTimerRef = useRef<number | null>(null);
+
+  const clearReplyTimers = () => {
+    if (replyTimerRef.current !== null) {
+      window.clearTimeout(replyTimerRef.current);
+      replyTimerRef.current = null;
+    }
+    if (extraNoteTimerRef.current !== null) {
+      window.clearTimeout(extraNoteTimerRef.current);
+      extraNoteTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      clearReplyTimers();
+    };
+  }, []);
 
   useEffect(() => {
     scrollEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, step]);
+  }, [messages, step, botTyping, streamingMsgId]);
 
   useEffect(() => {
     setOptionSearch('');
@@ -276,6 +371,7 @@ export function MaintenanceBotView({
     step === 's12_location';
 
   const advance = (answerText: string) => {
+    if (botTyping) return;
     let finalAnswer = answerText.trim();
     if (!finalAnswer) return;
 
@@ -290,6 +386,8 @@ export function MaintenanceBotView({
     }
 
     setErrorMsg('');
+    setTextInput('');
+    setOptionSearch('');
     setHistory((prev) => [...prev, { step, answers: { ...answers }, messages: [...messages] }]);
 
     const nextAnswers: MaintenanceAnswers = { ...answers };
@@ -395,25 +493,65 @@ export function MaintenanceBotView({
         return;
     }
 
-    const appended: ChatMessage[] = [
-      { id: `u-${Date.now()}`, sender: 'user', text: finalAnswer },
-    ];
-    if (extraBotNote) {
-      appended.push({
-        id: `b-note-${Date.now() + 1}`,
-        sender: 'bot',
-        text: extraBotNote,
-      });
-    }
-    appended.push({
-      id: `b-${Date.now() + 2}`,
-      sender: 'bot',
-      text: getPromptForStep(nextStep, nextAnswers),
-    });
+    const userMsg: ChatMessage = {
+      id: `u-${Date.now()}`,
+      sender: 'user',
+      text: finalAnswer,
+    };
 
-    setAnswers(nextAnswers);
-    setMessages((prev) => [...prev, ...appended]);
-    setStep(nextStep);
+    clearReplyTimers();
+    setMessages((prev) => [...prev, userMsg]);
+    setBotTyping(true);
+
+    if (extraBotNote) {
+      extraNoteTimerRef.current = window.setTimeout(() => {
+        const noteId = `b-note-${Date.now()}`;
+        setStreamingMsgId(noteId);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: noteId,
+            sender: 'bot',
+            text: extraBotNote as string,
+            stream: true,
+          },
+        ]);
+      }, 340);
+
+      replyTimerRef.current = window.setTimeout(() => {
+        const botId = `b-${Date.now()}`;
+        setStreamingMsgId(botId);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: botId,
+            sender: 'bot',
+            text: getPromptForStep(nextStep, nextAnswers),
+            stream: true,
+          },
+        ]);
+        setAnswers(nextAnswers);
+        setStep(nextStep);
+        setBotTyping(false);
+      }, 780);
+    } else {
+      replyTimerRef.current = window.setTimeout(() => {
+        const botId = `b-${Date.now()}`;
+        setStreamingMsgId(botId);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: botId,
+            sender: 'bot',
+            text: getPromptForStep(nextStep, nextAnswers),
+            stream: true,
+          },
+        ]);
+        setAnswers(nextAnswers);
+        setStep(nextStep);
+        setBotTyping(false);
+      }, 440);
+    }
   };
 
   const handleGetCurrentLocation = () => {
@@ -450,18 +588,25 @@ export function MaintenanceBotView({
   const handleUndo = () => {
     const last = history[history.length - 1];
     if (!last) return;
+    clearReplyTimers();
+    setBotTyping(false);
+    setStreamingMsgId(null);
     setStep(last.step);
     setAnswers(last.answers);
-    setMessages(last.messages);
+    setMessages(last.messages.map((m) => ({ ...m, stream: false })));
     setHistory((prev) => prev.slice(0, -1));
     setSavedSuccess(false);
     setErrorMsg('');
   };
 
   const handleReset = () => {
+    clearReplyTimers();
+    const initial = createInitialMessages();
+    setBotTyping(false);
+    setStreamingMsgId(initial[0]?.id ?? null);
     setStep('s1_cls');
     setAnswers({});
-    setMessages(createInitialMessages());
+    setMessages(initial);
     setHistory([]);
     setSavedSuccess(false);
     setCopied(false);
@@ -562,7 +707,11 @@ export function MaintenanceBotView({
 
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden flex flex-col min-h-[540px] max-h-[75vh] sm:max-h-[680px]">
-      <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 bg-slate-50/70 dark:bg-slate-950/60">
+      <div
+        className={`spectrum-track px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 bg-slate-50/70 dark:bg-slate-950/60 ${
+          botTyping || streamingMsgId !== null || locating || saving ? 'spectrum-bar-active' : ''
+        }`}
+      >
         <div className="flex items-center gap-2.5 min-w-0">
           <BrandLogo size="sm" />
           <div className="min-w-0">
@@ -579,7 +728,7 @@ export function MaintenanceBotView({
             type="button"
             disabled={history.length === 0 || saving}
             onClick={handleUndo}
-            className="min-h-[40px] px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-300 disabled:opacity-40 flex items-center gap-1.5 whitespace-nowrap"
+            className="min-h-[40px] px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-300 disabled:opacity-40 flex items-center gap-1.5 whitespace-nowrap btn-press"
           >
             <Undo2 className="w-3.5 h-3.5" aria-hidden="true" />
             <span>Quay lại</span>
@@ -588,7 +737,7 @@ export function MaintenanceBotView({
             type="button"
             disabled={saving}
             onClick={handleReset}
-            className="min-h-[40px] px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1.5 whitespace-nowrap"
+            className="min-h-[40px] px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1.5 whitespace-nowrap btn-press"
           >
             <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
             <span>Làm lại</span>
@@ -600,22 +749,55 @@ export function MaintenanceBotView({
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+            className={`flex ${
+              msg.sender === 'user'
+                ? 'justify-end animate-user-blossom'
+                : 'justify-start animate-reply-blossom'
+            }`}
           >
             <div
               className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
                 msg.sender === 'user'
                   ? 'bg-blue-600 text-white rounded-tr-sm'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-tl-sm'
+                  : `bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-tl-sm ${
+                      streamingMsgId === msg.id ? 'bubble-streaming-glow' : ''
+                    }`
               }`}
             >
-              {msg.text}
+              {msg.sender === 'bot' ? (
+                <StreamingBotText
+                  text={msg.text}
+                  animate={Boolean(msg.stream)}
+                  onComplete={() =>
+                    setStreamingMsgId((cur) => (cur === msg.id ? null : cur))
+                  }
+                />
+              ) : (
+                msg.text
+              )}
             </div>
           </div>
         ))}
 
-        {step === 'done' && (
-          <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3 text-xs sm:text-sm">
+        {botTyping && (
+          <div
+            className="flex justify-start animate-reply-blossom"
+            aria-live="polite"
+            aria-label="Trợ lý đang trả lời"
+          >
+            <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-3 w-52 sm:w-60 bubble-streaming-glow">
+              <span className="vessel-orb" aria-hidden="true" />
+              <div className="flex-1 space-y-2" aria-hidden="true">
+                <div className="draft-shimmer-bar w-full" />
+                <div className="draft-shimmer-bar draft-shimmer-delay-1 w-4/5" />
+                <div className="draft-shimmer-bar draft-shimmer-delay-2 w-3/5" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 'done' && !botTyping && streamingMsgId === null && (
+          <div className="animate-item-enter bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3 text-xs sm:text-sm">
             <p className="font-display font-semibold text-slate-900 dark:text-slate-100">
               Tóm tắt 12 bước Bảo Trì
             </p>
@@ -651,7 +833,7 @@ export function MaintenanceBotView({
       {errorMsg && (
         <div
           role="alert"
-          className="mx-4 mb-2 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 rounded-xl px-3.5 py-2 text-xs font-medium"
+          className="animate-item-enter mx-4 mb-2 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 rounded-xl px-3.5 py-2 text-xs font-medium"
         >
           {errorMsg}
         </div>
@@ -660,7 +842,7 @@ export function MaintenanceBotView({
       {savedSuccess && (
         <div
           role="status"
-          className="mx-4 mb-2 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 rounded-xl px-3.5 py-2 text-xs font-medium flex items-center gap-2"
+          className="animate-item-enter mx-4 mb-2 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 rounded-xl px-3.5 py-2 text-xs font-medium flex items-center gap-2"
         >
           <Check className="w-4 h-4 shrink-0" aria-hidden="true" />
           <span>Đã lưu phiếu Bảo Trì thành công vào danh sách!</span>
@@ -678,7 +860,7 @@ export function MaintenanceBotView({
                 <button
                   type="button"
                   onClick={onRequireAuth}
-                  className="w-full min-h-[48px] px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold flex items-center justify-center gap-2"
+                  className="w-full min-h-[48px] px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold flex items-center justify-center gap-2 btn-primary"
                 >
                   <LogIn className="w-4 h-4 shrink-0" aria-hidden="true" />
                   <span>Đăng nhập để lưu phiếu Bảo Trì</span>
@@ -689,7 +871,7 @@ export function MaintenanceBotView({
                 type="button"
                 disabled={saving}
                 onClick={handleSaveRecord}
-                className="w-full min-h-[48px] px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold"
+                className="w-full min-h-[48px] px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold btn-primary"
               >
                 {saving ? 'Đang lưu phiếu...' : 'Lưu phiếu Bảo Trì'}
               </button>
@@ -697,7 +879,7 @@ export function MaintenanceBotView({
               <button
                 type="button"
                 onClick={handleReset}
-                className="w-full min-h-[48px] px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-blue-600 text-white text-sm font-semibold"
+                className="w-full min-h-[48px] px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-blue-600 text-white text-sm font-semibold btn-primary"
               >
                 Thu thập phiếu Bảo Trì mới
               </button>
@@ -705,11 +887,11 @@ export function MaintenanceBotView({
             <button
               type="button"
               onClick={handleCopyReport}
-              className="w-full min-h-[44px] px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center justify-center gap-2"
+              className="w-full min-h-[44px] px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center justify-center gap-2 btn-press"
             >
               {copied ? (
                 <>
-                  <Check className="w-4 h-4 text-emerald-600" aria-hidden="true" />
+                  <Check className="w-4 h-4 text-emerald-600 animate-check-pop" aria-hidden="true" />
                   <span>Đã sao chép tin nhắn báo cáo</span>
                 </>
               ) : (
@@ -721,10 +903,16 @@ export function MaintenanceBotView({
             </button>
           </div>
         ) : (
-          <>
+          <div
+            key={step}
+            className={`space-y-2.5 animate-view-enter transition-opacity duration-200 ${
+              botTyping ? 'opacity-40 pointer-events-none' : ''
+            }`}
+          >
             {needsSearchBar && (
               <input
                 type="search"
+                disabled={botTyping}
                 value={optionSearch}
                 onChange={(e) => setOptionSearch(e.target.value)}
                 placeholder="Tìm nhanh mã thiết bị hoặc lỗi..."
@@ -736,18 +924,18 @@ export function MaintenanceBotView({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  disabled={locating}
+                  disabled={locating || botTyping}
                   onClick={handleGetCurrentLocation}
-                  className="flex-1 min-h-[48px] px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.99] transition-all"
+                  className="flex-1 min-h-[48px] px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold flex items-center justify-center gap-2 btn-primary"
                 >
                   <MapPin className="w-4 h-4 shrink-0" aria-hidden="true" />
                   <span>{locating ? 'Đang lấy tọa độ GPS...' : 'Lấy tọa độ đang đứng'}</span>
                 </button>
                 <button
                   type="button"
-                  disabled={locating}
+                  disabled={locating || botTyping}
                   onClick={() => advance('Không lấy được tọa độ')}
-                  className="min-h-[48px] px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap"
+                  className="min-h-[48px] px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap btn-press"
                 >
                   Bỏ qua
                 </button>
@@ -756,7 +944,7 @@ export function MaintenanceBotView({
 
             {activeChoices.length > 0 && (
               <div
-                className={`grid gap-2 ${
+                className={`grid gap-2 choice-wave-grid ${
                   step === 's1_cls'
                     ? 'grid-cols-6'
                     : step === 's3b_floors' || step === 's5_devices'
@@ -772,8 +960,9 @@ export function MaintenanceBotView({
                   <button
                     key={choice}
                     type="button"
+                    disabled={botTyping}
                     onClick={() => advance(choice)}
-                    className="min-h-[44px] px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-blue-600 hover:bg-blue-50/50 dark:hover:bg-blue-950/40 text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-100 active:scale-[0.98] transition-all text-center break-words"
+                    className="min-h-[44px] px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-blue-600 hover:bg-blue-50/50 dark:hover:bg-blue-950/40 text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-100 btn-press text-center break-words"
                   >
                     {choice}
                   </button>
@@ -791,6 +980,7 @@ export function MaintenanceBotView({
                         ? 'number'
                         : 'text'
                   }
+                  disabled={botTyping}
                   value={textInput}
                   onChange={(e) => {
                     const val = e.target.value;
@@ -818,15 +1008,15 @@ export function MaintenanceBotView({
                 />
                 <button
                   type="submit"
-                  disabled={!textInput.trim()}
+                  disabled={!textInput.trim() || botTyping}
                   aria-label="Gửi trả lời"
-                  className="min-w-[52px] min-h-[48px] px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white flex items-center justify-center shrink-0"
+                  className="min-w-[52px] min-h-[48px] px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white flex items-center justify-center shrink-0 btn-primary"
                 >
                   <Send className="w-5 h-5" aria-hidden="true" />
                 </button>
               </form>
             )}
-          </>
+          </div>
         )}
       </div>
     </div>

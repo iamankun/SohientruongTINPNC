@@ -43,19 +43,19 @@ export function OverviewView({
   return (
     <div className="space-y-7">
       <section aria-label="Thống kê nhanh" className="grid grid-cols-3 gap-3">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 sm:p-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 sm:p-4 card-elevate animate-item-enter stagger-1">
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Hôm nay</p>
           <p className="mt-1 text-2xl font-display font-bold tracking-tight text-slate-900 dark:text-slate-100 tabular-nums">
             {todayCount}
           </p>
         </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 sm:p-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 sm:p-4 card-elevate animate-item-enter stagger-2">
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Đang xử lý</p>
           <p className="mt-1 text-2xl font-display font-bold tracking-tight text-blue-700 dark:text-blue-400 tabular-nums">
             {activeCount}
           </p>
         </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 sm:p-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 sm:p-4 card-elevate animate-item-enter stagger-3">
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Hoàn thành</p>
           <p className="mt-1 text-2xl font-display font-bold tracking-tight text-emerald-700 dark:text-emerald-400 tabular-nums">
             {doneCount}
@@ -77,17 +77,18 @@ export function OverviewView({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          {coreCategories.map((cat) => {
+          {coreCategories.map((cat, idx) => {
             const style = COLOR_STYLES[cat.colorKey] || COLOR_STYLES.blue;
             const total = countByCategory[cat.id] || 0;
+            const staggerClass = idx === 0 ? 'stagger-1' : idx === 1 ? 'stagger-2' : 'stagger-3';
             return (
               <div
                 key={cat.id}
-                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex flex-col justify-between gap-4"
+                className={`group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex flex-col justify-between gap-4 card-elevate animate-item-enter ${staggerClass}`}
               >
                 <div className="flex items-start gap-3.5">
                   <div
-                    className={`w-11 h-11 rounded-xl shrink-0 flex items-center justify-center ${style.iconBg} ${style.iconText}`}
+                    className={`w-11 h-11 rounded-xl shrink-0 flex items-center justify-center transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-105 ${style.iconBg} ${style.iconText}`}
                   >
                     <CategoryIcon iconKey={cat.iconKey} className="w-5 h-5" />
                   </div>
@@ -100,7 +101,7 @@ export function OverviewView({
                       {cat.slug === 'bao-tri'
                         ? '12 bước BOT'
                         : cat.slug === 'hang-muc-3'
-                          ? 'Bản đồ & GPS'
+                          ? 'Định vị GPS'
                           : `${cat.fields.length} trường dữ liệu`}
                     </p>
                     <p className="mt-2 text-sm text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
@@ -115,21 +116,24 @@ export function OverviewView({
                   <button
                     type="button"
                     onClick={() => onQuickCollect(cat.id)}
-                    className="flex-1 min-h-[44px] px-4 py-2 rounded-xl bg-slate-900 dark:bg-blue-600 text-white text-sm font-medium flex items-center justify-center gap-2 hover:bg-slate-800 dark:hover:bg-blue-500 active:scale-[0.99] transition-all whitespace-nowrap"
+                    className="group/btn flex-1 min-h-[44px] px-4 py-2 rounded-xl bg-slate-900 dark:bg-blue-600 text-white text-sm font-medium flex items-center justify-center gap-2 hover:bg-slate-800 dark:hover:bg-blue-500 btn-primary whitespace-nowrap"
                   >
-                    <Plus className="w-4 h-4 shrink-0" aria-hidden="true" />
+                    <Plus
+                      className="w-4 h-4 shrink-0 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover/btn:rotate-90"
+                      aria-hidden="true"
+                    />
                     <span>
                       {cat.slug === 'bao-tri'
                         ? 'Mở BOT Bảo Trì'
                         : cat.slug === 'hang-muc-3'
-                          ? 'Mở bản đồ vị trí'
+                          ? 'Lấy tọa độ vị trí'
                           : 'Ghi nhận mới'}
                     </span>
                   </button>
                   <button
                     type="button"
                     onClick={() => onFilterCategory(cat.id)}
-                    className="min-h-[44px] px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-medium hover:bg-slate-200/80 dark:hover:bg-slate-700 transition-colors whitespace-nowrap"
+                    className="min-h-[44px] px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-medium hover:bg-slate-200/80 dark:hover:bg-slate-700 btn-press whitespace-nowrap"
                   >
                     Xem danh sách
                   </button>
@@ -153,7 +157,7 @@ export function OverviewView({
           </p>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger-list">
           {tempCategories.map((cat) => {
             const style = COLOR_STYLES[cat.colorKey] || COLOR_STYLES.slate;
             return (
@@ -161,7 +165,7 @@ export function OverviewView({
                 key={cat.id}
                 type="button"
                 onClick={() => onDevelopingCategory(cat)}
-                className="text-left bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 sm:p-4 hover:border-slate-300 dark:hover:border-slate-700 active:scale-[0.98] transition-all flex flex-col justify-between min-h-[116px]"
+                className="text-left bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 sm:p-4 hover:border-slate-300 dark:hover:border-slate-700 card-elevate flex flex-col justify-between min-h-[116px]"
               >
                 <div className="flex items-center justify-between gap-2 w-full">
                   <div
@@ -196,10 +200,13 @@ export function OverviewView({
             <button
               type="button"
               onClick={() => onFilterCategory('all')}
-              className="min-h-[44px] px-2 text-xs font-medium text-blue-700 dark:text-blue-400 flex items-center gap-1 hover:underline whitespace-nowrap shrink-0"
+              className="group min-h-[44px] px-2 text-xs font-medium text-blue-700 dark:text-blue-400 flex items-center gap-1 hover:underline btn-press whitespace-nowrap shrink-0"
             >
               <span>Tất cả ({records.length})</span>
-              <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+              <ArrowRight
+                className="w-3.5 h-3.5 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-x-0.5"
+                aria-hidden="true"
+              />
             </button>
           )}
         </div>
@@ -214,7 +221,7 @@ export function OverviewView({
             </p>
           </div>
         ) : (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden stagger-list">
             {recentRecords.map((rec) => {
               const cat = categoryMap.get(rec.categoryId);
               const style = COLOR_STYLES[cat?.colorKey || 'slate'];
@@ -223,7 +230,7 @@ export function OverviewView({
                   key={rec.id}
                   type="button"
                   onClick={() => onSelectRecord(rec)}
-                  className="w-full text-left px-4 py-3.5 min-h-[64px] flex items-center gap-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                  className="w-full text-left px-4 py-3.5 min-h-[64px] flex items-center gap-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 row-elevate"
                 >
                   <div
                     className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center ${style.iconBg} ${style.iconText}`}

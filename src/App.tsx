@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { AdminModal } from './components/AdminModal';
 import { AuthModal } from './components/AuthModal';
+import { BookLoading } from './components/BookLoading';
 import { BrandLogo } from './components/BrandLogo';
 import { CollectView } from './components/CollectView';
 import { DevelopingModal } from './components/DevelopingModal';
@@ -37,6 +38,8 @@ import {
 } from './services/firestoreService';
 import type { AdminUser, AppTab, Category, FieldRecord, UserProfile } from './types';
 
+const TAB_ORDER: AppTab[] = ['overview', 'collect', 'records'];
+
 function AppContent() {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -54,6 +57,7 @@ function AppContent() {
   const [dataError, setDataError] = useState('');
 
   const [activeTab, setActiveTab] = useState<AppTab>('overview');
+  const [tabDirection, setTabDirection] = useState<'initial' | 'next' | 'prev'>('initial');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
     () => createGuestCategories()[0]?.id || ''
   );
@@ -228,17 +232,25 @@ function AppContent() {
     setAuthModalOpen(true);
   };
 
+  const switchTab = (nextTab: AppTab) => {
+    if (nextTab === activeTab) return;
+    const prevIdx = TAB_ORDER.indexOf(activeTab);
+    const nextIdx = TAB_ORDER.indexOf(nextTab);
+    setTabDirection(nextIdx >= prevIdx ? 'next' : 'prev');
+    setActiveTab(nextTab);
+  };
+
   const handleQuickCollect = (categoryId?: string) => {
     if (categoryId) {
       setSelectedCategoryId(categoryId);
     }
-    setActiveTab('collect');
+    switchTab('collect');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleFilterCategory = (categoryId: string) => {
     setRecordsCategoryFilter(categoryId);
-    setActiveTab('records');
+    switchTab('records');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -254,14 +266,16 @@ function AppContent() {
     records: 'Danh sách ghi nhận',
   };
 
+  const activeTabIndex = TAB_ORDER.indexOf(activeTab);
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       <header className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-12 lg:h-16 flex items-center justify-between gap-3 lg:gap-8">
           <button
             type="button"
-            onClick={() => setActiveTab('overview')}
-            className="min-w-0 flex items-center gap-2.5 text-base lg:text-lg font-display font-bold tracking-tight text-slate-900 dark:text-slate-100 whitespace-nowrap lg:shrink-0 text-left"
+            onClick={() => switchTab('overview')}
+            className="min-w-0 flex items-center gap-2.5 text-base lg:text-lg font-display font-bold tracking-tight text-slate-900 dark:text-slate-100 whitespace-nowrap lg:shrink-0 text-left btn-press"
           >
             <BrandLogo size="sm" />
             <span className="lg:hidden truncate">{mobileTitleMap[activeTab]}</span>
@@ -269,7 +283,7 @@ function AppContent() {
           </button>
 
           <nav
-            className="hidden lg:flex items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-400"
+            className="hidden lg:grid grid-cols-3 relative w-[288px] text-sm font-medium text-slate-600 dark:text-slate-400"
             aria-label="Điều hướng chính"
           >
             {navItems.map((item) => {
@@ -278,17 +292,29 @@ function AppContent() {
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => setActiveTab(item.id)}
-                  className={`py-1 whitespace-nowrap shrink-0 transition-colors border-b-2 ${
+                  onClick={() => switchTab(item.id)}
+                  className={`py-2.5 text-center whitespace-nowrap shrink-0 btn-press ${
                     active
-                      ? 'text-slate-900 dark:text-slate-100 border-blue-600'
-                      : 'border-transparent hover:text-slate-900 dark:hover:text-slate-100'
+                      ? 'text-slate-900 dark:text-slate-100 font-semibold'
+                      : 'hover:text-slate-900 dark:hover:text-slate-100'
                   }`}
                 >
                   {item.label}
                 </button>
               );
             })}
+            <span
+              aria-hidden="true"
+              className={`pointer-events-none absolute bottom-0 left-0 w-1/3 h-0.5 flex justify-center transition-transform duration-[420ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                activeTabIndex === 0
+                  ? 'translate-x-0'
+                  : activeTabIndex === 1
+                    ? 'translate-x-full'
+                    : 'translate-x-[200%]'
+              }`}
+            >
+              <span className="w-14 h-full bg-gradient-to-r from-blue-600 via-sky-400 to-blue-600 rounded-full shadow-[0_2px_14px_rgba(37,99,235,0.42)]" />
+            </span>
           </nav>
 
           <div className="flex items-center gap-1.5 shrink-0">
@@ -296,16 +322,20 @@ function AppContent() {
               type="button"
               onClick={() => setDarkMode((v) => !v)}
               aria-label={darkMode ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
-              className="lg:hidden min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-slate-600 dark:text-slate-300"
+              className="lg:hidden min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-slate-600 dark:text-slate-300 btn-press"
             >
-              {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              {darkMode ? (
+                <Sun key="sun-m" className="w-5 h-5 animate-theme-icon" />
+              ) : (
+                <Moon key="moon-m" className="w-5 h-5 animate-theme-icon" />
+              )}
             </button>
 
             <button
               type="button"
               onClick={() => openAuthModal('account')}
               title={user ? user.displayName || user.email || 'Tài khoản' : 'Đăng nhập'}
-              className={`lg:hidden min-h-[40px] rounded-xl text-xs font-medium flex items-center gap-2 whitespace-nowrap shrink-0 ${
+              className={`lg:hidden min-h-[40px] rounded-xl text-xs font-medium flex items-center gap-2 whitespace-nowrap shrink-0 btn-press ${
                 user
                   ? 'pl-1.5 pr-2.5 py-1 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900'
                   : 'px-3 bg-slate-900 dark:bg-blue-600 text-white'
@@ -329,9 +359,12 @@ function AppContent() {
             <button
               type="button"
               onClick={() => handleQuickCollect(selectedCategoryId || categories[0]?.id)}
-              className="hidden lg:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium whitespace-nowrap shrink-0 transition-colors"
+              className="group hidden lg:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium whitespace-nowrap shrink-0 btn-primary"
             >
-              <Plus className="w-4 h-4" aria-hidden="true" />
+              <Plus
+                className="w-4 h-4 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-90"
+                aria-hidden="true"
+              />
               <span>Ghi nhận mới</span>
             </button>
           </div>
@@ -389,9 +422,13 @@ function AppContent() {
             <button
               type="button"
               onClick={() => setDarkMode((v) => !v)}
-              className="inline-flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-slate-100 transition-colors whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-slate-100 btn-press whitespace-nowrap"
             >
-              {darkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+              {darkMode ? (
+                <Sun key="sun-d" className="w-3.5 h-3.5 animate-theme-icon" />
+              ) : (
+                <Moon key="moon-d" className="w-3.5 h-3.5 animate-theme-icon" />
+              )}
               <span>{darkMode ? 'Giao diện sáng' : 'Giao diện tối'}</span>
             </button>
           </div>
@@ -400,19 +437,25 @@ function AppContent() {
         {dataError && (
           <div
             role="alert"
-            className="bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 rounded-2xl px-4 py-3 text-sm"
+            className="animate-item-enter bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 rounded-2xl px-4 py-3 text-sm"
           >
             {dataError}
           </div>
         )}
 
         {!authReady || dataLoading ? (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 flex flex-col items-center gap-3 text-center text-sm text-slate-500 dark:text-slate-400">
-            <BrandLogo size="lg" />
-            <span>Đang đồng bộ dữ liệu...</span>
-          </div>
+          <BookLoading />
         ) : (
-          <>
+          <div
+            key={activeTab}
+            className={
+              tabDirection === 'next'
+                ? 'animate-page-next'
+                : tabDirection === 'prev'
+                  ? 'animate-page-prev'
+                  : 'animate-view-enter'
+            }
+          >
             {activeTab === 'overview' && (
               <OverviewView
                 categories={categories}
@@ -451,7 +494,7 @@ function AppContent() {
                 onRequireAuth={() => openAuthModal('save')}
               />
             )}
-          </>
+          </div>
         )}
       </main>
 
@@ -488,14 +531,25 @@ function AppContent() {
         <div className="grid grid-cols-3 items-center h-14">
           <button
             type="button"
-            onClick={() => setActiveTab('overview')}
-            className={`min-h-[44px] flex flex-col items-center justify-center ${
+            onClick={() => switchTab('overview')}
+            className={`relative min-h-[44px] flex flex-col items-center justify-center btn-press ${
               activeTab === 'overview'
                 ? 'text-blue-600 dark:text-blue-400'
                 : 'text-slate-500 dark:text-slate-400'
             }`}
           >
-            <Home className="w-5 h-5" aria-hidden="true" />
+            <span
+              aria-hidden="true"
+              className={`absolute top-0 w-8 h-0.5 rounded-full bg-blue-600 dark:bg-blue-400 transition-all duration-250 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                activeTab === 'overview' ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0'
+              }`}
+            />
+            <Home
+              className={`w-5 h-5 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                activeTab === 'overview' ? '-translate-y-0.5 scale-105' : ''
+              }`}
+              aria-hidden="true"
+            />
             <span className="text-[11px] font-medium tracking-tight mt-0.5 whitespace-nowrap">
               Tổng quan
             </span>
@@ -503,14 +557,25 @@ function AppContent() {
 
           <button
             type="button"
-            onClick={() => setActiveTab('collect')}
-            className={`min-h-[44px] flex flex-col items-center justify-center ${
+            onClick={() => switchTab('collect')}
+            className={`relative min-h-[44px] flex flex-col items-center justify-center btn-press ${
               activeTab === 'collect'
                 ? 'text-blue-600 dark:text-blue-400'
                 : 'text-slate-500 dark:text-slate-400'
             }`}
           >
-            <PlusCircle className="w-5 h-5" aria-hidden="true" />
+            <span
+              aria-hidden="true"
+              className={`absolute top-0 w-8 h-0.5 rounded-full bg-blue-600 dark:bg-blue-400 transition-all duration-250 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                activeTab === 'collect' ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0'
+              }`}
+            />
+            <PlusCircle
+              className={`w-5 h-5 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                activeTab === 'collect' ? '-translate-y-0.5 scale-105' : ''
+              }`}
+              aria-hidden="true"
+            />
             <span className="text-[11px] font-medium tracking-tight mt-0.5 whitespace-nowrap">
               Thu thập
             </span>
@@ -518,14 +583,25 @@ function AppContent() {
 
           <button
             type="button"
-            onClick={() => setActiveTab('records')}
-            className={`min-h-[44px] flex flex-col items-center justify-center ${
+            onClick={() => switchTab('records')}
+            className={`relative min-h-[44px] flex flex-col items-center justify-center btn-press ${
               activeTab === 'records'
                 ? 'text-blue-600 dark:text-blue-400'
                 : 'text-slate-500 dark:text-slate-400'
             }`}
           >
-            <ClipboardList className="w-5 h-5" aria-hidden="true" />
+            <span
+              aria-hidden="true"
+              className={`absolute top-0 w-8 h-0.5 rounded-full bg-blue-600 dark:bg-blue-400 transition-all duration-250 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                activeTab === 'records' ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0'
+              }`}
+            />
+            <ClipboardList
+              className={`w-5 h-5 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                activeTab === 'records' ? '-translate-y-0.5 scale-105' : ''
+              }`}
+              aria-hidden="true"
+            />
             <span className="text-[11px] font-medium tracking-tight mt-0.5 whitespace-nowrap">
               Danh sách
             </span>

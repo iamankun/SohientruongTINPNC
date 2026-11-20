@@ -101,9 +101,9 @@ export const DEFAULT_CATEGORY_TEMPLATES: SeedCategoryTemplate[] = [
   },
   {
     idSuffix: 'hang-muc-3',
-    name: 'Bản đồ vị trí',
+    name: 'Tọa độ vị trí',
     slug: 'hang-muc-3',
-    description: 'Hiển thị bản đồ tại vị trí đang đứng, lấy nhanh tọa độ GPS hiện tại và lưu điểm hiện trường.',
+    description: 'Lấy nhanh tọa độ GPS tại vị trí đang đứng, sao chép và lưu điểm hiện trường.',
     group: 'core',
     colorKey: 'emerald',
     iconKey: 'clipboard',

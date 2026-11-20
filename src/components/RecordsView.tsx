@@ -162,7 +162,7 @@ export function RecordsView({
             type="button"
             onClick={handleExportCsv}
             disabled={filteredRecords.length === 0}
-            className="min-h-[44px] px-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+            className="min-h-[44px] px-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 flex items-center gap-2 whitespace-nowrap btn-press"
           >
             <Download className="w-4 h-4" aria-hidden="true" />
             <span>Xuất CSV</span>
@@ -172,9 +172,12 @@ export function RecordsView({
             onClick={() =>
               onCreateNew(activeCategoryFilter !== 'all' ? activeCategoryFilter : undefined)
             }
-            className="min-h-[44px] px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 flex items-center gap-1.5 whitespace-nowrap"
+            className="group min-h-[44px] px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 flex items-center gap-1.5 whitespace-nowrap btn-primary"
           >
-            <Plus className="w-4 h-4" aria-hidden="true" />
+            <Plus
+              className="w-4 h-4 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-90"
+              aria-hidden="true"
+            />
             <span>Thêm mới</span>
           </button>
         </div>
@@ -185,7 +188,7 @@ export function RecordsView({
           <button
             type="button"
             onClick={() => onChangeCategoryFilter('all')}
-            className={`min-h-[40px] px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 border transition-colors ${
+            className={`min-h-[40px] px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 border btn-press ${
               activeCategoryFilter === 'all'
                 ? 'bg-slate-900 dark:bg-blue-600 text-white border-slate-900 dark:border-blue-600'
                 : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800'
@@ -206,7 +209,7 @@ export function RecordsView({
                     onChangeCategoryFilter(cat.id);
                   }
                 }}
-                className={`min-h-[40px] px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 border transition-colors ${
+                className={`min-h-[40px] px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 border btn-press ${
                   !isTemp && activeCategoryFilter === cat.id
                     ? 'bg-slate-900 dark:bg-blue-600 text-white border-slate-900 dark:border-blue-600'
                     : isTemp
@@ -226,7 +229,7 @@ export function RecordsView({
               key={opt.value}
               type="button"
               onClick={() => setStatusFilter(opt.value)}
-              className={`min-h-[36px] px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap shrink-0 transition-colors ${
+              className={`min-h-[36px] px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap shrink-0 btn-press ${
                 statusFilter === opt.value
                   ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
@@ -245,7 +248,7 @@ export function RecordsView({
             <button
               type="button"
               onClick={() => setOwnerScope('all')}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+              className={`px-2.5 py-1 rounded-md text-xs font-medium btn-press whitespace-nowrap ${
                 ownerScope === 'all'
                   ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400'
@@ -256,7 +259,7 @@ export function RecordsView({
             <button
               type="button"
               onClick={() => setOwnerScope('mine')}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+              className={`px-2.5 py-1 rounded-md text-xs font-medium btn-press whitespace-nowrap ${
                 ownerScope === 'mine'
                   ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400'
@@ -280,7 +283,7 @@ export function RecordsView({
             <button
               type="button"
               onClick={onRequireAuth}
-              className="min-h-[44px] px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium inline-flex items-center gap-2"
+              className="min-h-[44px] px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium inline-flex items-center gap-2 btn-press"
             >
               <LogIn className="w-4 h-4" aria-hidden="true" />
               <span>Đăng nhập bằng Google</span>
@@ -298,7 +301,7 @@ export function RecordsView({
         </div>
       ) : (
         <>
-          <div className="lg:hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
+          <div className="lg:hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden stagger-list">
             {filteredRecords.map((rec) => {
               const cat = categoryMap.get(rec.categoryId);
               const style = COLOR_STYLES[cat?.colorKey || 'slate'];
@@ -307,7 +310,7 @@ export function RecordsView({
                   key={rec.id}
                   type="button"
                   onClick={() => onSelectRecord(rec)}
-                  className="w-full text-left px-4 py-3.5 min-h-[68px] flex items-center gap-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                  className="w-full text-left px-4 py-3.5 min-h-[68px] flex items-center gap-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 row-elevate"
                 >
                   <div
                     className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center ${style.iconBg} ${style.iconText}`}

@@ -86,12 +86,12 @@ export function AuthModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm animate-backdrop-enter"
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-modal-title"
     >
-      <div className="w-full sm:max-w-md bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl border-t sm:border border-slate-200 dark:border-slate-800 overflow-hidden pb-safe">
+      <div className="w-full sm:max-w-md bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl border-t sm:border border-slate-200 dark:border-slate-800 overflow-hidden pb-safe animate-sheet-enter">
         <div className="sm:hidden pt-2.5 pb-1">
           <div className="w-10 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto" />
         </div>
@@ -114,9 +114,9 @@ export function AuthModal({
             type="button"
             onClick={onClose}
             aria-label="Đóng"
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="group min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 btn-press"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-90" />
           </button>
         </div>
 
@@ -157,11 +157,11 @@ export function AuthModal({
                 <button
                   type="button"
                   onClick={handleCopyUid}
-                  className="min-h-[36px] px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1 shrink-0 whitespace-nowrap"
+                  className="min-h-[36px] px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1 shrink-0 whitespace-nowrap btn-press"
                 >
                   {copiedUid ? (
                     <>
-                      <Check className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
+                      <Check className="w-3.5 h-3.5 text-emerald-600 animate-check-pop" aria-hidden="true" />
                       <span>Đã chép</span>
                     </>
                   ) : (
@@ -180,7 +180,7 @@ export function AuthModal({
                     onClose();
                     onOpenAdmin();
                   }}
-                  className="w-full min-h-[48px] px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-500 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
+                  className="w-full min-h-[48px] px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-500 text-white text-sm font-semibold flex items-center justify-center gap-2 btn-primary"
                 >
                   <Shield className="w-4 h-4 shrink-0" aria-hidden="true" />
                   <span>Chỉ định tài khoản quản trị viên</span>
@@ -191,7 +191,7 @@ export function AuthModal({
                 type="button"
                 disabled={busy}
                 onClick={handleSignOut}
-                className="w-full min-h-[48px] px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+                className="w-full min-h-[48px] px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-sm font-semibold flex items-center justify-center gap-2 btn-press disabled:opacity-60"
               >
                 <LogOut className="w-4 h-4 shrink-0" aria-hidden="true" />
                 <span>{busy ? 'Đang đăng xuất...' : 'Đăng xuất'}</span>
@@ -215,7 +215,7 @@ export function AuthModal({
                 type="button"
                 disabled={busy}
                 onClick={handleGoogleSignIn}
-                className="w-full min-h-[48px] px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold flex items-center justify-center gap-2.5 active:scale-[0.99] transition-all"
+                className="w-full min-h-[48px] px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold flex items-center justify-center gap-2.5 btn-primary"
               >
                 <LogIn className="w-4 h-4 shrink-0" aria-hidden="true" />
                 <span>{busy ? 'Đang mở đăng nhập...' : 'Đăng nhập bằng Google'}</span>
@@ -225,7 +225,7 @@ export function AuthModal({
                 type="button"
                 disabled={busy}
                 onClick={onClose}
-                className="w-full min-h-[44px] px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                className="w-full min-h-[44px] px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 btn-press"
               >
                 Tiếp tục dùng không cần lưu
               </button>

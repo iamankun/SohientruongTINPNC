@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { User } from 'firebase/auth';
 import { Check, LogIn } from 'lucide-react';
 import { COLOR_STYLES, getTodayIsoDate, PRIORITY_LABELS, STATUS_LABELS } from '../defaults';
@@ -46,9 +46,22 @@ export function CollectView({
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successBanner, setSuccessBanner] = useState('');
+  const prevCatSlugRef = useRef<string | undefined>(activeCategory?.slug);
+
+  let catAnimClass = 'animate-view-enter';
+  if (
+    prevCatSlugRef.current &&
+    activeCategory?.slug &&
+    prevCatSlugRef.current !== activeCategory.slug
+  ) {
+    const prevIdx = coreCategories.findIndex((c) => c.slug === prevCatSlugRef.current);
+    const nextIdx = coreCategories.findIndex((c) => c.slug === activeCategory.slug);
+    catAnimClass = nextIdx >= prevIdx ? 'animate-page-next' : 'animate-page-prev';
+  }
 
   useEffect(() => {
     setCustomData({});
+    prevCatSlugRef.current = activeCategory?.slug;
   }, [activeCategory?.slug]);
 
   if (!activeCategory) {
@@ -169,7 +182,7 @@ export function CollectView({
                     onSelectCategory(cat.id);
                   }
                 }}
-                className={`min-h-[44px] px-3.5 py-2 rounded-xl text-sm font-medium flex items-center gap-2 whitespace-nowrap shrink-0 border transition-all ${
+                className={`min-h-[44px] px-3.5 py-2 rounded-xl text-sm font-medium flex items-center gap-2 whitespace-nowrap shrink-0 border btn-press ${
                   isSelected
                     ? 'bg-slate-900 dark:bg-blue-600 text-white border-slate-900 dark:border-blue-600'
                     : isTemp
@@ -191,6 +204,10 @@ export function CollectView({
         </div>
       </div>
 
+      <div
+        key={activeCategory.slug}
+        className={`space-y-5 ${catAnimClass}`}
+      >
       {activeCategory.slug === 'bao-tri' ? (
         <MaintenanceBotView
           user={user}
@@ -213,7 +230,7 @@ export function CollectView({
               <button
                 type="button"
                 onClick={onRequireAuth}
-                className="min-h-[36px] px-3 py-1.5 rounded-xl bg-amber-900 dark:bg-amber-400 text-white dark:text-slate-950 text-xs font-semibold whitespace-nowrap shrink-0"
+                className="min-h-[36px] px-3 py-1.5 rounded-xl bg-amber-900 dark:bg-amber-400 text-white dark:text-slate-950 text-xs font-semibold whitespace-nowrap shrink-0 btn-press"
               >
                 Đăng nhập
               </button>
@@ -222,7 +239,7 @@ export function CollectView({
           {successBanner && (
             <div
               role="status"
-              className="bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 rounded-2xl px-4 py-3 text-sm font-medium flex items-center gap-2.5"
+              className="animate-item-enter bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 rounded-2xl px-4 py-3 text-sm font-medium flex items-center gap-2.5"
             >
               <Check className="w-4 h-4 shrink-0" aria-hidden="true" />
               <span>{successBanner}</span>
@@ -232,7 +249,7 @@ export function CollectView({
           {errorMsg && (
             <div
               role="alert"
-              className="bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 rounded-2xl px-4 py-3 text-sm font-medium"
+              className="animate-item-enter bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 rounded-2xl px-4 py-3 text-sm font-medium"
             >
               {errorMsg}
             </div>
@@ -329,7 +346,7 @@ export function CollectView({
                     key={st}
                     type="button"
                     onClick={() => setStatus(st)}
-                    className={`min-h-[48px] px-2 py-2 rounded-xl text-xs sm:text-sm font-medium border transition-colors whitespace-nowrap truncate ${
+                    className={`min-h-[48px] px-2 py-2 rounded-xl text-xs sm:text-sm font-medium border btn-press whitespace-nowrap truncate ${
                       active
                         ? 'bg-blue-600 text-white border-blue-600'
                         : 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -355,7 +372,7 @@ export function CollectView({
                   key={p}
                   type="button"
                   onClick={() => setPriority(p)}
-                  className={`min-h-[44px] px-3 py-2 rounded-xl text-sm font-medium border transition-colors whitespace-nowrap ${
+                  className={`min-h-[44px] px-3 py-2 rounded-xl text-sm font-medium border btn-press whitespace-nowrap ${
                     active
                       ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border-slate-900 dark:border-slate-100'
                       : 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -500,7 +517,7 @@ export function CollectView({
         <button
           type="submit"
           disabled={submitting}
-          className="w-full min-h-[48px] px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+          className="w-full min-h-[48px] px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold btn-primary flex items-center justify-center gap-2"
         >
           {!user && <LogIn className="w-4 h-4 shrink-0" aria-hidden="true" />}
           <span>
@@ -514,6 +531,7 @@ export function CollectView({
       </form>
         </>
       )}
+      </div>
     </div>
   );
 }

@@ -92,12 +92,12 @@ export function AdminModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm animate-backdrop-enter"
       role="dialog"
       aria-modal="true"
       aria-labelledby="admin-modal-title"
     >
-      <div className="w-full sm:max-w-xl bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl border-t sm:border border-slate-200 dark:border-slate-800 max-h-[90vh] flex flex-col overflow-hidden pb-safe">
+      <div className="w-full sm:max-w-xl bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl border-t sm:border border-slate-200 dark:border-slate-800 max-h-[90vh] flex flex-col overflow-hidden pb-safe animate-sheet-enter">
         <div className="sm:hidden pt-2.5 pb-1">
           <div className="w-10 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto" />
         </div>
@@ -116,9 +116,9 @@ export function AdminModal({
             type="button"
             onClick={onClose}
             aria-label="Đóng"
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="group min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 btn-press"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-90" />
           </button>
         </div>
 
@@ -298,7 +298,7 @@ export function AdminModal({
             <button
               type="submit"
               disabled={!manualUid.trim() || busyId !== null}
-              className="w-full min-h-[44px] px-4 py-2 rounded-xl bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-semibold"
+              className="w-full min-h-[44px] px-4 py-2 rounded-xl bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-semibold btn-primary"
             >
               Thêm quản trị viên theo UID
             </button>

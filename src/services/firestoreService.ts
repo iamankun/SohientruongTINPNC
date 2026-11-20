@@ -322,7 +322,9 @@ export async function migrateLegacyTempCategories(
   const mapTemplate = DEFAULT_CATEGORY_TEMPLATES.find((t) => t.slug === 'hang-muc-3');
   const existingCat3 = currentCategories.find((c) => c.slug === 'hang-muc-3');
   const needsCat3Upgrade = Boolean(
-    mapTemplate && existingCat3 && existingCat3.group === 'temporary'
+    mapTemplate &&
+      existingCat3 &&
+      (existingCat3.group === 'temporary' || existingCat3.name === 'Bản đồ vị trí')
   );
 
   if (legacyDocs.length === 0 && !needsCat3Upgrade) return false;
