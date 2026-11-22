@@ -9,6 +9,7 @@ import {
   PlusCircle,
   Shield,
   Sun,
+  WifiOff,
 } from 'lucide-react';
 import { AdminModal } from './components/AdminModal';
 import { AuthModal } from './components/AuthModal';
@@ -19,11 +20,14 @@ import { DevelopingModal } from './components/DevelopingModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Footer } from './components/Footer';
 import { OverviewView } from './components/OverviewView';
+import { PWAInstallBanner, PWAInstallModal } from './components/PWAInstallGuide';
 import { RecordDetailSheet } from './components/RecordDetailSheet';
 import { RecordsView } from './components/RecordsView';
 import { UserAvatar } from './components/UserAvatar';
 import { createGuestCategories, sortCategories } from './defaults';
 import { auth } from './firebase';
+import { useOnlineStatus } from './hooks/useOnlineStatus';
+import { usePWAInstall } from './hooks/usePWAInstall';
 import {
   migrateLegacyTempCategories,
   ROOT_ADMIN_EMAIL,
@@ -68,6 +72,18 @@ function AppContent() {
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem('sht_theme') === 'dark';
+  });
+
+  const isOnline = useOnlineStatus();
+  const { isInstallable, isInstalled, isIOS, isAndroid, isInAppBrowser, install } =
+    usePWAInstall();
+  const [installModalOpen, setInstallModalOpen] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const raw = localStorage.getItem('sht_pwa_banner_dismissed_at');
+    if (!raw) return false;
+    const dismissedAt = Number(raw);
+    return Number.isFinite(dismissedAt) && Date.now() - dismissedAt < 7 * 24 * 60 * 60 * 1000;
   });
 
   const seededRef = useRef<string | null>(null);
@@ -254,6 +270,19 @@ function AppContent() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleDismissInstallBanner = () => {
+    localStorage.setItem('sht_pwa_banner_dismissed_at', String(Date.now()));
+    setBannerDismissed(true);
+  };
+
+  const handleBannerInstallClick = async () => {
+    if (isInstallable) {
+      const accepted = await install();
+      if (accepted) return;
+    }
+    setInstallModalOpen(true);
+  };
+
   const navItems: Array<{ id: AppTab; label: string }> = [
     { id: 'overview', label: 'Tổng quan' },
     { id: 'collect', label: 'Thu thập' },
@@ -434,6 +463,24 @@ function AppContent() {
           </div>
         </div>
 
+        {!isOnline && (
+          <div
+            role="status"
+            className="animate-item-enter bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 rounded-2xl px-4 py-2.5 text-xs sm:text-sm flex items-center gap-2.5"
+          >
+            <WifiOff className="w-4 h-4 shrink-0" aria-hidden="true" />
+            <span>Đang ngoại tuyến — Dữ liệu bộ nhớ đệm đang được hiển thị.</span>
+          </div>
+        )}
+
+        <PWAInstallBanner
+          visible={!isInstalled && !bannerDismissed && (isInstallable || isIOS || isAndroid)}
+          isInstallable={isInstallable}
+          isIOS={isIOS}
+          onInstallClick={handleBannerInstallClick}
+          onDismiss={handleDismissInstallBanner}
+        />
+
         {dataError && (
           <div
             role="alert"
@@ -498,7 +545,10 @@ function AppContent() {
         )}
       </main>
 
-      <Footer />
+      <Footer
+        canInstall={!isInstalled}
+        onOpenInstall={() => setInstallModalOpen(true)}
+      />
 
       <DevelopingModal
         category={developingCategory}
@@ -510,8 +560,19 @@ function AppContent() {
         user={user}
         isAdmin={isAdmin}
         reason={authModalReason}
+        canInstall={!isInstalled}
         onClose={() => setAuthModalOpen(false)}
         onOpenAdmin={() => setAdminModalOpen(true)}
+        onOpenInstall={() => setInstallModalOpen(true)}
+      />
+
+      <PWAInstallModal
+        open={installModalOpen}
+        defaultTab={isIOS ? 'ios' : 'android'}
+        isInstallable={isInstallable}
+        isInAppBrowser={isInAppBrowser}
+        onInstallNative={install}
+        onClose={() => setInstallModalOpen(false)}
       />
 
       {user && isAdmin && (

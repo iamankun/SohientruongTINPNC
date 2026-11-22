@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { signInWithPopup, signOut, type User } from 'firebase/auth';
-import { Check, Copy, LogIn, LogOut, Shield, ShieldCheck, X } from 'lucide-react';
+import { Check, Copy, LogIn, LogOut, Shield, ShieldCheck, Smartphone, X } from 'lucide-react';
 import { auth, googleProvider } from '../firebase';
 import { BrandLogo } from './BrandLogo';
 import { UserAvatar } from './UserAvatar';
@@ -10,8 +10,10 @@ interface AuthModalProps {
   user: User | null;
   isAdmin?: boolean;
   reason?: 'save' | 'account';
+  canInstall?: boolean;
   onClose: () => void;
   onOpenAdmin?: () => void;
+  onOpenInstall?: () => void;
   onSuccess?: () => void;
 }
 
@@ -36,8 +38,10 @@ export function AuthModal({
   user,
   isAdmin = false,
   reason = 'account',
+  canInstall = false,
   onClose,
   onOpenAdmin,
+  onOpenInstall,
   onSuccess,
 }: AuthModalProps) {
   const [busy, setBusy] = useState(false);
@@ -230,6 +234,20 @@ export function AuthModal({
                 Tiếp tục dùng không cần lưu
               </button>
             </div>
+          )}
+
+          {canInstall && onOpenInstall && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenInstall();
+              }}
+              className="w-full min-h-[44px] px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 flex items-center justify-center gap-2 btn-press"
+            >
+              <Smartphone className="w-4 h-4 shrink-0" aria-hidden="true" />
+              <span>Thêm vào màn hình chính (iPhone / Android)</span>
+            </button>
           )}
         </div>
       </div>

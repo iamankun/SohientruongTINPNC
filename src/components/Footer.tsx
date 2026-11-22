@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Smartphone } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
 
 const ANKUN_LOGO_URL =
@@ -6,7 +7,12 @@ const ANKUN_LOGO_URL =
 const FPT_LOGO_URL =
   'https://fpt.vn/frontend_layout_2025_vibecode/assets/images/fpt-telecom-logo-footer.svg';
 
-export function Footer() {
+interface FooterProps {
+  canInstall?: boolean;
+  onOpenInstall?: () => void;
+}
+
+export function Footer({ canInstall = false, onOpenInstall }: FooterProps) {
   const [ankunImgError, setAnkunImgError] = useState(false);
   const [fptImgError, setFptImgError] = useState(false);
 
@@ -50,6 +56,16 @@ export function Footer() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          {canInstall && onOpenInstall && (
+            <button
+              type="button"
+              onClick={onOpenInstall}
+              className="min-h-[44px] px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-slate-100 text-xs font-medium inline-flex items-center gap-1.5 transition-colors btn-press whitespace-nowrap"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-blue-400 shrink-0" aria-hidden="true" />
+              <span>Thêm vào màn hình chính</span>
+            </button>
+          )}
           <span className="text-slate-300">Hỗ trợ cho kỹ thuật viên</span>
           {!fptImgError ? (
             <img
