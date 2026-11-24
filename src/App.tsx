@@ -4,11 +4,9 @@ import {
   ClipboardList,
   Home,
   LogIn,
-  Moon,
   Plus,
   PlusCircle,
   Shield,
-  Sun,
   WifiOff,
 } from 'lucide-react';
 import { AdminModal } from './components/AdminModal';
@@ -69,11 +67,6 @@ function AppContent() {
   const [selectedRecord, setSelectedRecord] = useState<FieldRecord | null>(null);
   const [developingCategory, setDevelopingCategory] = useState<Category | null>(null);
 
-  const [darkMode, setDarkMode] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem('sht_theme') === 'dark';
-  });
-
   const isOnline = useOnlineStatus();
   const { isInstallable, isInstalled, isIOS, isAndroid, isInAppBrowser, install } =
     usePWAInstall();
@@ -100,15 +93,9 @@ function AppContent() {
   }, [categories]);
 
   useEffect(() => {
-    const root = document.documentElement;
-    if (darkMode) {
-      root.classList.add('dark');
-      localStorage.setItem('sht_theme', 'dark');
-    } else {
-      root.classList.remove('dark');
-      localStorage.setItem('sht_theme', 'light');
-    }
-  }, [darkMode]);
+    document.documentElement.classList.add('dark');
+    localStorage.setItem('sht_theme', 'dark');
+  }, []);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (firebaseUser) => {
@@ -349,19 +336,6 @@ function AppContent() {
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
-              onClick={() => setDarkMode((v) => !v)}
-              aria-label={darkMode ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
-              className="lg:hidden min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-slate-600 dark:text-slate-300 btn-press"
-            >
-              {darkMode ? (
-                <Sun key="sun-m" className="w-5 h-5 animate-theme-icon" />
-              ) : (
-                <Moon key="moon-m" className="w-5 h-5 animate-theme-icon" />
-              )}
-            </button>
-
-            <button
-              type="button"
               onClick={() => openAuthModal('account')}
               title={user ? user.displayName || user.email || 'Tài khoản' : 'Đăng nhập'}
               className={`lg:hidden min-h-[40px] rounded-xl text-xs font-medium flex items-center gap-2 whitespace-nowrap shrink-0 btn-press ${
@@ -447,18 +421,6 @@ function AppContent() {
                   <span>Đăng nhập Google</span>
                 </>
               )}
-            </button>
-            <button
-              type="button"
-              onClick={() => setDarkMode((v) => !v)}
-              className="inline-flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-slate-100 btn-press whitespace-nowrap"
-            >
-              {darkMode ? (
-                <Sun key="sun-d" className="w-3.5 h-3.5 animate-theme-icon" />
-              ) : (
-                <Moon key="moon-d" className="w-3.5 h-3.5 animate-theme-icon" />
-              )}
-              <span>{darkMode ? 'Giao diện sáng' : 'Giao diện tối'}</span>
             </button>
           </div>
         </div>

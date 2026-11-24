@@ -24,8 +24,8 @@ export default defineConfig(() => {
           short_name: 'Sổ TINPNC',
           description:
             'Ứng dụng di động thu thập thông tin triển khai, bảo trì và các hạng mục mở rộng linh hoạt.',
-          theme_color: '#2563eb',
-          background_color: '#f8fafc',
+          theme_color: '#0f172a',
+          background_color: '#020617',
           display: 'standalone',
           orientation: 'portrait',
           start_url: '/',
