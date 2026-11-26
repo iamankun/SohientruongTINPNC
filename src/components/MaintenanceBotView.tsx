@@ -7,8 +7,10 @@ import {
   CLS_OPTIONS,
   DEVICE_TOTAL_OPTIONS,
   FAULT_GROUPS,
+  FAULT_SECTIONS,
   FLOOR_COUNTS,
   HOUSE_MODELS,
+  LEGACY_SINGLE_BAND_MODEMS,
   MODEM_MODELS,
   ONT_EXTRA_ROUTERS,
   type FaultGroupName,
@@ -139,6 +141,12 @@ function getPromptForStep(step: BotStepId, answers: MaintenanceAnswers): string 
     case 's4b_router':
       return '4. Vì Modem là ONT, vui lòng chọn thêm Router TP-Link hoặc AP đi kèm:';
     case 's4c_ap':
+      if (answers.modem === 'BE6500C (Hub)') {
+        return '4. Chọn thiết bị AP (Access Point) tại nhà khách hàng (gợi ý tương thích: BE6500C (Mesh)):';
+      }
+      if (answers.modem && LEGACY_SINGLE_BAND_MODEMS.has(answers.modem)) {
+        return '4. Chọn thiết bị AP (Access Point) tại nhà khách hàng (gợi ý chọn AP đi kèm với Modem/ONT đời cũ 1 băng tần):';
+      }
       return '4. Chọn thiết bị AP (Access Point) tại nhà khách hàng:';
     case 's4d_box':
       return '4. Chọn thiết bị Box (Truyền hình) tại nhà khách hàng:';
@@ -326,7 +334,14 @@ export function MaintenanceBotView({
         list = ONT_EXTRA_ROUTERS;
         break;
       case 's4c_ap':
-        list = AP_MODELS;
+        list =
+          answers.modem === 'BE6500C (Hub)'
+            ? [
+                'Không',
+                'BE6500C (Mesh)',
+                ...AP_MODELS.filter((m) => m !== 'Không' && m !== 'BE6500C (Mesh)'),
+              ]
+            : AP_MODELS;
         break;
       case 's4d_box':
         list = BOX_MODELS;
@@ -338,7 +353,7 @@ export function MaintenanceBotView({
         list = Object.keys(FAULT_GROUPS);
         break;
       case 's6b_fault_detail':
-        list = FAULT_GROUPS[answers.nhom_loi || 'Internet'] || [];
+        list = [];
         break;
       case 's8a_tool_my_bao':
       case 's8b_has_ap':
@@ -354,6 +369,19 @@ export function MaintenanceBotView({
     const q = optionSearch.trim().toLowerCase();
     if (!q) return list;
     return list.filter((item) => item.toLowerCase().includes(q));
+  }, [step, answers.nhom_loi, answers.modem, optionSearch]);
+
+  const filteredFaultSections = useMemo(() => {
+    if (step !== 's6b_fault_detail') return [];
+    const sections = FAULT_SECTIONS[answers.nhom_loi || 'Internet'] || [];
+    const q = optionSearch.trim().toLowerCase();
+    if (!q) return sections;
+    return sections
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => item.toLowerCase().includes(q)),
+      }))
+      .filter((section) => section.items.length > 0);
   }, [step, answers.nhom_loi, optionSearch]);
 
   const needsSearchBar =
@@ -943,6 +971,39 @@ export function MaintenanceBotView({
                 >
                   Bỏ qua
                 </button>
+              </div>
+            )}
+
+            {step === 's6b_fault_detail' && (
+              <div className="max-h-60 overflow-y-auto pr-1 space-y-3">
+                {filteredFaultSections.length === 0 ? (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-4">
+                    Không tìm thấy lỗi phù hợp.
+                  </p>
+                ) : (
+                  filteredFaultSections.map((section, sectionIdx) => (
+                    <div key={section.title || `sec-${sectionIdx}`} className="space-y-1.5">
+                      {section.title && (
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 px-0.5">
+                          {section.title}
+                        </p>
+                      )}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 choice-wave-grid">
+                        {section.items.map((choice) => (
+                          <button
+                            key={choice}
+                            type="button"
+                            disabled={botTyping}
+                            onClick={() => advance(choice)}
+                            className="min-h-[44px] px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-blue-600 hover:bg-blue-50/50 dark:hover:bg-blue-950/40 text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-100 btn-press text-left break-words leading-snug"
+                          >
+                            {choice}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             )}
 
