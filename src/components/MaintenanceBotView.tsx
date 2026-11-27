@@ -356,6 +356,8 @@ export function MaintenanceBotView({
         list = [];
         break;
       case 's8a_tool_my_bao':
+        list = ['Có', 'Không', 'Lỗi Mỹ Bảo'];
+        break;
       case 's8b_has_ap':
       case 's8c_want_ap':
       case 's9_need_md_ap':
